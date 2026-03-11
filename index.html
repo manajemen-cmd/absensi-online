@@ -924,26 +924,51 @@ async function startCam() {
       // Fallback: model tidak tersedia — pakai countdown 5 detik + pastikan kamera aktif
       setStep('step-face', 'done');
       let sisa = 5;
-      setLivenessBar('📷', `Posisikan wajah di kamera... (${sisa}s)`, 'blue');
+      setLivenessBar('📷', `Posisikan wajah di kamera... (${sisa}d)`, 'blue');
       setStep('step-blink', 'active');
+
+      // Deteksi gerakan kamera sederhana — pastikan bukan gambar diam
+      let lastPixelSum = 0;
+      let motionDetected = false;
+      const motionCheck = setInterval(() => {
+        const v = document.getElementById('video');
+        if (!v) return;
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 48;
+        c.getContext('2d').drawImage(v, 0, 0, 64, 48);
+        const px = c.getContext('2d').getImageData(0, 0, 64, 48).data;
+        let sum = 0;
+        for (let i = 0; i < px.length; i += 4) sum += px[i];
+        if (lastPixelSum && Math.abs(sum - lastPixelSum) > 500) motionDetected = true;
+        lastPixelSum = sum;
+      }, 200);
 
       const countdown = setInterval(() => {
         sisa--;
         if (sisa > 0) {
-          setLivenessBar('📷', `Posisikan wajah di kamera... (${sisa}s)`, 'blue');
+          setLivenessBar('📷', `Posisikan wajah di kamera... (${sisa}d)`, 'blue');
         } else {
           clearInterval(countdown);
-          // Cek apakah kamera masih aktif (stream ada)
-          if (stream && stream.active) {
-            setStep('step-blink', 'done');
-            setStep('step-real', 'done');
-            setLivenessBar('✅', 'Siap ambil foto!', 'green');
-            document.getElementById('btn-capture').disabled = false;
-            document.getElementById('btn-capture').style.opacity = '1';
-            document.getElementById('btn-capture').style.background = '#059669';
-          } else {
+          clearInterval(motionCheck);
+          if (!stream || !stream.active) {
             setLivenessBar('❌', 'Kamera tidak aktif — ulangi', 'red');
+            return;
           }
+          if (!motionDetected) {
+            // Tidak ada gerakan — kemungkinan foto diam
+            setStep('step-real', 'fail');
+            setLivenessBar('🖥️', 'Tidak ada gerakan — pastikan pakai kamera HP langsung!', 'red');
+            document.getElementById('btn-capture').disabled = true;
+            document.getElementById('btn-capture').style.opacity = '0.4';
+            setTimeout(() => retake(), 3000);
+            return;
+          }
+          setStep('step-blink', 'done');
+          setStep('step-real', 'done');
+          setLivenessBar('✅', 'Siap ambil foto!', 'green');
+          document.getElementById('btn-capture').disabled = false;
+          document.getElementById('btn-capture').style.opacity = '1';
+          document.getElementById('btn-capture').style.background = '#059669';
         }
       }, 1000);
       return;
@@ -1061,8 +1086,55 @@ function startLivenessLoop() {
   }, 150);
 }
 
-function capturePhoto() {
+async function capturePhoto() {
   const video = document.getElementById('video');
+  if (!video || !stream || !stream.active) {
+    showToast('Kamera tidak aktif, ulangi!', 'error'); return;
+  }
+
+  // ── Validasi wajah saat tombol diklik ──────────────────
+  const btn = document.getElementById('btn-capture');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '🔍 Cek wajah...';
+
+  if (livenessState.faceApiReady && typeof faceapi !== 'undefined') {
+    try {
+      const det = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+        .withFaceLandmarks(true);
+
+      if (!det) {
+        btn.disabled = false;
+        btn.textContent = origText;
+        showToast('❌ Wajah tidak terdeteksi! Hadapkan wajah ke kamera.', 'error');
+        // Kedipkan border merah di kamera
+        const wrap = document.querySelector('.camera-wrap');
+        if (wrap) {
+          wrap.style.outline = '3px solid #dc2626';
+          setTimeout(() => wrap.style.outline = '', 1500);
+        }
+        return;
+      }
+
+      // Cek screen detection sekali lagi saat foto
+      const tmpC = document.createElement('canvas');
+      tmpC.width = video.videoWidth; tmpC.height = video.videoHeight;
+      tmpC.getContext('2d').drawImage(video, 0, 0);
+      const imgData = tmpC.getContext('2d').getImageData(0, 0, tmpC.width, tmpC.height);
+      if (detectScreen(imgData)) {
+        btn.disabled = false;
+        btn.textContent = origText;
+        showToast('🖥️ Terdeteksi foto/layar! Gunakan wajah asli.', 'error');
+        return;
+      }
+    } catch(e) {
+      console.warn('Face check error:', e);
+    }
+  }
+
+  btn.textContent = '📸 Mengambil...';
+
   const canvas = document.createElement('canvas');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;

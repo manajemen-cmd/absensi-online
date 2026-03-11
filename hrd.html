@@ -519,22 +519,38 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
 // AUTH
 // ============================================================
 const HRD_PASS = 'hrd2024'; // Ganti password di sini
+const SESSION_KEY = 'hrd_session';
 
 function hrdLogin() {
   const pass = document.getElementById('hrd-password').value;
   if (pass === HRD_PASS) {
-    document.getElementById('screen-login').style.display = 'none';
-    document.getElementById('screen-app').style.display = 'block';
-    initApp();
+    sessionStorage.setItem(SESSION_KEY, 'true');
+    showApp();
   } else {
     showToast('Password salah!', 'error');
+    document.getElementById('hrd-password').value = '';
+    document.getElementById('hrd-password').focus();
   }
 }
 
 function hrdLogout() {
+  sessionStorage.removeItem(SESSION_KEY);
   document.getElementById('screen-login').style.display = 'flex';
   document.getElementById('screen-app').style.display = 'none';
 }
+
+function showApp() {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'block';
+  initApp();
+}
+
+// Cek session saat halaman dimuat — kalau masih login, langsung masuk
+document.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+    showApp();
+  }
+});
 
 // ============================================================
 // FIREBASE HELPERS (compat SDK)

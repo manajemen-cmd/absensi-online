@@ -6,15 +6,10 @@
 <title>Absensi Online</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
-<!-- ✅ FIREBASE SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, doc, getDoc }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  // ============================================================
-  // 🔧 GANTI DENGAN KONFIGURASI FIREBASE KAMU
-  // ============================================================
+<!-- FIREBASE COMPAT SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
   const firebaseConfig = {
     apiKey: "AIzaSyAF22vg9Nu4OpVgk_9DcJpKsR0thlK75vQ",
     authDomain: "absensi-perusahaan-9a406.firebaseapp.com",
@@ -24,21 +19,9 @@
     appId: "1:864080096300:web:8ceba34272492c8c91f589",
     measurementId: "G-X0Z4GX0YN8"
   };
-  // ============================================================
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  window._db = db;
+  firebase.initializeApp(firebaseConfig);
+  window._db = firebase.firestore();
   window._fbReady = true;
-  window._collection = collection;
-  window._addDoc = addDoc;
-  window._getDocs = getDocs;
-  window._query = query;
-  window._where = where;
-  window._orderBy = orderBy;
-  window._doc = doc;
-  window._getDoc = getDoc;
-
   document.dispatchEvent(new Event('firebase-ready'));
 </script>
 
@@ -498,12 +481,21 @@ function waitFirebase() {
 }
 
 async function fbAdd(col, data) {
-  return window._addDoc(window._collection(window._db, col), data);
+  return window._db.collection(col).add(data);
 }
 
 async function fbQuery(col, ...conditions) {
-  const q = window._query(window._collection(window._db, col), ...conditions);
-  const snap = await window._getDocs(q);
+  let ref = window._db.collection(col);
+  for (const cond of conditions) {
+    ref = ref.where(cond.field, cond.op, cond.value);
+  }
+  const snap = await ref.get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function fbGetAll(col) {
+  await waitFirebase();
+  const snap = await window._db.collection(col).get();
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -539,8 +531,8 @@ async function loadKaryawan() {
 
   await waitFirebase();
   const list = await fbQuery('karyawan',
-    window._where('cabangId', '==', cabangId),
-    window._where('karyawanId', '==', idInput)
+    {field:'cabangId', op:'==', value:cabangId},
+    {field:'karyawanId', op:'==', value:idInput}
   );
 
   if (!list.length) {
@@ -590,9 +582,9 @@ async function checkStatusHariIni() {
     '<div class="loading"><div class="spinner"></div> Mengecek...</div>';
 
   const records = await fbQuery('absensi',
-    window._where('karyawanId', '==', currentUser.karyawanId),
-    window._where('cabangId', '==', currentUser.cabangId),
-    window._where('tanggal', '==', today)
+    {field:'karyawanId', op:'==', value:currentUser.karyawanId},
+    {field:'cabangId', op:'==', value:currentUser.cabangId},
+    {field:'tanggal', op:'==', value:today}
   );
 
   const masuk = records.find(r => r.status === 'Masuk');

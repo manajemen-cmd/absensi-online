@@ -6,16 +6,10 @@
 <title>HRD Dashboard — Absensi Multi-Cabang</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
-<!-- FIREBASE -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc,
-           query, where, orderBy, setDoc, updateDoc }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  // ============================================================
-  // 🔧 GANTI DENGAN KONFIGURASI FIREBASE KAMU (SAMA SEPERTI index.html)
-  // ============================================================
+<!-- FIREBASE COMPAT SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
   const firebaseConfig = {
     apiKey: "AIzaSyAF22vg9Nu4OpVgk_9DcJpKsR0thlK75vQ",
     authDomain: "absensi-perusahaan-9a406.firebaseapp.com",
@@ -25,18 +19,10 @@
     appId: "1:864080096300:web:8ceba34272492c8c91f589",
     measurementId: "G-X0Z4GX0YN8"
   };
-  // ============================================================
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  window._db = db;
+  firebase.initializeApp(firebaseConfig);
+  const _db = firebase.firestore();
+  window._db = _db;
   window._fbReady = true;
-  window._col = collection; window._addDoc = addDoc;
-  window._getDocs = getDocs; window._deleteDoc = deleteDoc;
-  window._doc = doc; window._query = query;
-  window._where = where; window._orderBy = orderBy;
-  window._setDoc = setDoc; window._updateDoc = updateDoc;
-
   document.dispatchEvent(new Event('firebase-ready'));
 </script>
 
@@ -551,7 +537,7 @@ function hrdLogout() {
 }
 
 // ============================================================
-// FIREBASE
+// FIREBASE HELPERS (compat SDK)
 // ============================================================
 function waitFB() {
   return new Promise(r => { if (window._fbReady) return r(); document.addEventListener('firebase-ready', r, {once:true}); });
@@ -559,27 +545,30 @@ function waitFB() {
 
 async function fbGetAll(col) {
   await waitFB();
-  const snap = await window._getDocs(window._collection(window._db, col));
+  const snap = await window._db.collection(col).get();
   return snap.docs.map(d => ({id: d.id, ...d.data()}));
 }
 
 async function fbQuery(col, ...conds) {
   await waitFB();
-  const q = window._query(window._collection(window._db, col), ...conds);
-  const snap = await window._getDocs(q);
+  let ref = window._db.collection(col);
+  for (const cond of conds) {
+    ref = ref.where(cond.field, cond.op, cond.value);
+  }
+  const snap = await ref.get();
   return snap.docs.map(d => ({id: d.id, ...d.data()}));
 }
 
 async function fbAdd(col, data) {
-  return window._addDoc(window._collection(window._db, col), data);
+  return window._db.collection(col).add(data);
 }
 
 async function fbSet(col, id, data) {
-  return window._setDoc(window._doc(window._db, col, id), data);
+  return window._db.collection(col).doc(id).set(data);
 }
 
 async function fbDel(col, id) {
-  return window._deleteDoc(window._doc(window._db, col, id));
+  return window._db.collection(col).doc(id).delete();
 }
 
 // ============================================================

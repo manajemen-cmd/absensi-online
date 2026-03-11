@@ -294,6 +294,8 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
 
       <div class="nav-section" style="margin-top:8px">Tools</div>
       <button class="nav-item" onclick="showPage('export', this)"><span class="icon">📤</span> Export Data</button>
+      <button class="nav-item" onclick="showPage('fingerspot', this)"><span class="icon">🖐️</span> Fingerspot</button>
+      <button class="nav-item" onclick="showPage('lokasi', this)"><span class="icon">📍</span> Lokasi Kantor</button>
       <button class="nav-item" onclick="showPage('settings', this)"><span class="icon">⚙️</span> Pengaturan</button>
     </nav>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.1)">
@@ -381,7 +383,7 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
 
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Foto</th><th>Nama</th><th>ID</th><th>Cabang</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Keterangan</th><th>Lokasi</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Foto</th><th>Nama</th><th>ID</th><th>Cabang</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Keterangan</th><th>Sumber</th><th>Lokasi</th><th>Aksi</th></tr></thead>
               <tbody id="table-absensi"></tbody>
             </table>
           </div>
@@ -508,6 +510,144 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
           </div>
           <button class="btn btn-green btn-full" onclick="exportCSV()" style="margin-bottom:10px">📥 Download CSV</button>
           <button class="btn btn-blue btn-full" onclick="exportCSVKaryawan()">👥 Export Data Karyawan</button>
+        </div>
+      </div>
+
+      <!-- ======== LOKASI KANTOR ======== -->
+      <div class="page" id="page-lokasi">
+        <div style="max-width:700px">
+
+          <div class="grid-2" style="margin-bottom:20px">
+            <!-- Form tambah lokasi -->
+            <div class="card">
+              <div class="card-title" style="margin-bottom:16px">➕ Tambah Lokasi Kantor</div>
+              <div class="form-group">
+                <label>Cabang</label>
+                <select id="lok-cabang"></select>
+              </div>
+              <div class="form-group">
+                <label>Nama Lokasi</label>
+                <input type="text" id="lok-nama" placeholder="Contoh: Kantor Pusat Lt.1">
+              </div>
+              <div class="form-group">
+                <label>Radius Maksimum</label>
+                <select id="lok-radius">
+                  <option value="50">50 meter (ketat)</option>
+                  <option value="100" selected>100 meter (standar)</option>
+                  <option value="150">150 meter (longgar)</option>
+                  <option value="200">200 meter (sangat longgar)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Koordinat GPS</label>
+                <div style="display:flex;gap:8px">
+                  <input type="text" id="lok-lat" placeholder="Latitude" style="flex:1">
+                  <input type="text" id="lok-lng" placeholder="Longitude" style="flex:1">
+                </div>
+                <div style="font-size:11px;color:var(--muted);margin-top:6px">
+                  💡 Klik tombol di bawah untuk ambil dari lokasi kamu sekarang, atau cari di Google Maps → klik kanan → salin koordinat
+                </div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-outline" style="flex:1" onclick="ambilKoordinatHRD()">📍 Ambil Lokasimu</button>
+                <button class="btn btn-blue" style="flex:1" onclick="tambahLokasi()">➕ Simpan</button>
+              </div>
+            </div>
+
+            <!-- Preview peta -->
+            <div class="card">
+              <div class="card-title" style="margin-bottom:12px">🗺️ Preview Lokasi</div>
+              <div id="peta-preview" style="background:#f1f5f9;border-radius:10px;height:200px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)">
+                Isi koordinat lalu klik Simpan
+              </div>
+              <div id="peta-info" style="margin-top:10px;font-size:12px"></div>
+            </div>
+          </div>
+
+          <!-- List lokasi terdaftar -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📍 Lokasi Terdaftar</div>
+              <button class="btn btn-outline btn-sm" onclick="loadLokasiList()">🔄 Refresh</button>
+            </div>
+            <div id="list-lokasi">
+              <div class="loading"><div class="spinner"></div> Memuat...</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ======== FINGERSPOT ======== -->
+      <div class="page" id="page-fingerspot">
+        <div style="max-width:700px">
+
+          <!-- INFO ENDPOINT -->
+          <div class="card" style="margin-bottom:20px;border-left:4px solid var(--blue)">
+            <div class="card-title" style="margin-bottom:12px">🔗 URL Endpoint Fingerspot</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Masukkan URL ini ke pengaturan ADMS di mesin fingerspot:</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div id="endpoint-url" style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--blue);word-break:break-all">
+                https://DOMAIN-NETLIFY-KAMU.netlify.app/.netlify/functions/fingerspot
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="copyEndpoint()">📋 Copy</button>
+            </div>
+            <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.7">
+              ⚙️ Di mesin fingerspot: <strong>Menu → Cloud → Server Address</strong><br>
+              📌 Port: <strong>80</strong> &nbsp;|&nbsp; Protocol: <strong>HTTP</strong>
+            </div>
+          </div>
+
+          <!-- TAMBAH MESIN -->
+          <div class="grid-2" style="margin-bottom:20px">
+            <div class="card">
+              <div class="card-title" style="margin-bottom:16px">➕ Daftarkan Mesin</div>
+              <div class="form-group">
+                <label>Serial Number (SN)</label>
+                <input type="text" id="fp-sn" placeholder="Contoh: ABCD1234567" style="text-transform:uppercase">
+                <div style="font-size:11px;color:var(--muted);margin-top:4px">Lihat SN di stiker belakang mesin atau Menu → Info</div>
+              </div>
+              <div class="form-group">
+                <label>Nama Mesin</label>
+                <input type="text" id="fp-nama" placeholder="Contoh: Mesin Lantai 1">
+              </div>
+              <div class="form-group">
+                <label>Cabang</label>
+                <select id="fp-cabang">
+                  <option value="">-- Pilih Cabang --</option>
+                </select>
+              </div>
+              <button class="btn btn-blue btn-full" onclick="tambahMesin()">➕ Daftarkan Mesin</button>
+            </div>
+
+            <!-- STATUS MESIN -->
+            <div class="card">
+              <div class="card-title" style="margin-bottom:16px">📡 Status Mesin</div>
+              <div id="list-mesin">
+                <div class="loading"><div class="spinner"></div> Memuat...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LOG ABSENSI FINGERSPOT -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🖐️ Log Absensi Fingerspot (Terbaru)</div>
+              <button class="btn btn-outline btn-sm" onclick="loadFingerspotLog()">🔄 Refresh</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nama</th><th>ID</th><th>Cabang</th><th>Tanggal</th>
+                    <th>Waktu</th><th>Status</th><th>Verifikasi</th><th>Mesin SN</th>
+                  </tr>
+                </thead>
+                <tbody id="table-fp-log"></tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -689,7 +829,9 @@ const pageMeta = {
   karyawan: ['Manajemen Karyawan', 'Tambah & kelola karyawan per cabang'],
   cabang: ['Manajemen Cabang', 'Tambah & kelola cabang'],
   export: ['Export Data', 'Download data ke CSV'],
-  settings: ['Pengaturan', 'Profil admin & konfigurasi sistem'],
+  settings:     ['Pengaturan', 'Profil admin & konfigurasi sistem'],
+  fingerspot:   ['Mesin Fingerspot', 'Daftarkan & kelola mesin absensi per cabang'],
+  lokasi:       ['Lokasi Kantor', 'Atur koordinat & radius geofencing tiap cabang'],
 };
 
 function showPage(name, btn) {
@@ -701,12 +843,14 @@ function showPage(name, btn) {
   document.getElementById('topbar-sub').textContent = pageMeta[name][1];
 
   const loaders = {
-    dashboard: loadDashboard,
-    absensi: loadAbsensiData,
-    rekap: loadRekap,
-    karyawan: () => { loadKaryawanList(); },
-    cabang: loadCabangList,
-    settings: loadSettings,
+    dashboard:   loadDashboard,
+    absensi:     loadAbsensiData,
+    rekap:       loadRekap,
+    karyawan:    () => { loadKaryawanList(); },
+    cabang:      loadCabangList,
+    settings:    loadSettings,
+    fingerspot:  () => { loadMesinList(); loadFingerspotLog(); },
+    lokasi:      () => { loadLokasiList(); },
   };
   if (loaders[name]) loaders[name]();
 }
@@ -729,11 +873,16 @@ async function initApp() {
   await refreshCabangDropdowns();
   loadSettings();
   loadDashboard();
+  // Update peta preview kalau koordinat diisi manual
+  ['lok-lat','lok-lng','lok-radius'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updatePetaPreview);
+  });
 }
 
 async function refreshCabangDropdowns() {
   const list = await fbGetAll('cabang');
-  const ids = ['filter-cabang-absensi','filter-cabang-rekap','filter-cabang-kar','kar-cabang','exp-cabang'];
+  const ids = ['filter-cabang-absensi','filter-cabang-rekap','filter-cabang-kar','kar-cabang','exp-cabang','fp-cabang','lok-cabang'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     const first = el.options[0].outerHTML;
@@ -831,6 +980,12 @@ function renderAbsensi() {
       <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);font-size:12px">${a.waktu}</td>
       <td><span class="badge ${a.status === 'Masuk' ? 'badge-masuk' : 'badge-pulang'}">${a.status}</span></td>
       <td style="font-size:12px">${a.keterangan}</td>
+      <td style="font-size:11px">
+        ${a.sumber === 'fingerspot'
+          ? `<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700">🖐️ Fingerspot</span>`
+          : `<span style="background:#f0fdf4;color:#059669;border:1px solid #a7f3d0;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700">📱 Mobile</span>`
+        }
+      </td>
       <td style="font-size:11px;max-width:160px">
         ${a.lokasi ? `
           <div style="color:#374151;font-weight:500">${a.lokasi.alamat || '-'}</div>
@@ -1015,10 +1170,12 @@ async function exportCSV() {
 
   if (!data.length) { showToast('Tidak ada data untuk diexport', 'error'); return; }
 
-  const header = ['Nama', 'ID Karyawan', 'Jabatan', 'Cabang', 'Tanggal', 'Waktu', 'Status', 'Keterangan', 'Alamat Lokasi', 'Koordinat', 'Akurasi GPS'];
+  const header = ['Nama', 'ID Karyawan', 'Jabatan', 'Cabang', 'Tanggal', 'Waktu', 'Status', 'Keterangan', 'Sumber', 'Verifikasi', 'Alamat Lokasi', 'Koordinat', 'Akurasi GPS'];
   const rows = data.map(a => [
     a.nama, a.karyawanId, a.jabatan||'', a.cabangNama||'',
     a.tanggal, a.waktu, a.status, a.keterangan,
+    a.sumber === 'fingerspot' ? 'Fingerspot' : 'Mobile',
+    a.verifikasi || '-',
     a.lokasi?.alamat||'-',
     a.lokasi ? `${a.lokasi.lat}, ${a.lokasi.lng}` : '-',
     a.lokasi ? `±${a.lokasi.akurasi}m` : '-'
@@ -1063,6 +1220,233 @@ function openFoto(src) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove('show');
+}
+
+// ============================================================
+// LOKASI KANTOR (GEOFENCING)
+// ============================================================
+function hitungJarakHRD(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+function ambilKoordinatHRD() {
+  if (!navigator.geolocation) { showToast('GPS tidak tersedia', 'error'); return; }
+  showToast('📡 Mengambil lokasi...', 'info');
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('lok-lat').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('lok-lng').value = pos.coords.longitude.toFixed(6);
+    showToast(`✅ Koordinat diambil (±${Math.round(pos.coords.accuracy)}m)`, 'success');
+    updatePetaPreview();
+  }, () => showToast('Gagal ambil GPS', 'error'),
+  { enableHighAccuracy: true, timeout: 15000 });
+}
+
+function updatePetaPreview() {
+  const lat = document.getElementById('lok-lat').value;
+  const lng = document.getElementById('lok-lng').value;
+  const radius = document.getElementById('lok-radius').value;
+  if (!lat || !lng) return;
+
+  const previewEl = document.getElementById('peta-preview');
+  const infoEl = document.getElementById('peta-info');
+
+  // Embed OpenStreetMap iframe
+  previewEl.innerHTML = `<iframe
+    src="https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lng)-0.002},${parseFloat(lat)-0.002},${parseFloat(lng)+0.002},${parseFloat(lat)+0.002}&layer=mapnik&marker=${lat},${lng}"
+    style="width:100%;height:200px;border:none;border-radius:10px" loading="lazy">
+  </iframe>`;
+
+  infoEl.innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <span style="font-family:monospace;color:var(--blue)">${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}</span>
+      <span style="color:var(--green);font-weight:700">Radius: ${radius}m</span>
+    </div>
+    <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank"
+       style="font-size:11px;color:var(--blue);text-decoration:none">🗺️ Buka Google Maps</a>`;
+}
+
+async function tambahLokasi() {
+  const cabangId = document.getElementById('lok-cabang').value;
+  const nama     = document.getElementById('lok-nama').value.trim();
+  const lat      = document.getElementById('lok-lat').value.trim();
+  const lng      = document.getElementById('lok-lng').value.trim();
+  const radius   = parseInt(document.getElementById('lok-radius').value);
+
+  if (!cabangId || !nama || !lat || !lng) { showToast('Semua field wajib diisi!', 'error'); return; }
+  if (isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) { showToast('Koordinat tidak valid!', 'error'); return; }
+
+  const cabangList = await fbGetAll('cabang');
+  const cab = cabangList.find(c => c.id === cabangId);
+
+  await fbAdd('lokasi_kantor', {
+    cabangId, cabangNama: cab?.nama || cabangId,
+    nama, lat: parseFloat(lat), lng: parseFloat(lng), radius,
+    createdAt: Date.now()
+  });
+
+  document.getElementById('lok-nama').value = '';
+  document.getElementById('lok-lat').value = '';
+  document.getElementById('lok-lng').value = '';
+  document.getElementById('peta-preview').innerHTML = 'Isi koordinat lalu klik Simpan';
+  document.getElementById('peta-info').innerHTML = '';
+
+  showToast(`✅ Lokasi ${nama} berhasil disimpan!`, 'success');
+  loadLokasiList();
+}
+
+async function loadLokasiList() {
+  const list = await fbGetAll('lokasi_kantor');
+  const container = document.getElementById('list-lokasi');
+  if (!list.length) {
+    container.innerHTML = '<div class="empty"><div class="icon">📍</div><p>Belum ada lokasi terdaftar<br><small style="color:var(--muted)">Tambah lokasi kantor supaya geofencing aktif</small></p></div>';
+    return;
+  }
+
+  // Group by cabang
+  const byCabang = list.reduce((acc, l) => {
+    if (!acc[l.cabangNama]) acc[l.cabangNama] = [];
+    acc[l.cabangNama].push(l);
+    return acc;
+  }, {});
+
+  container.innerHTML = Object.entries(byCabang).map(([cabang, loks]) => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">🏢 ${cabang}</div>
+      ${loks.map(l => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface);border-radius:10px;margin-bottom:6px;border:1px solid var(--border)">
+          <div>
+            <div style="font-weight:700;font-size:13px">📍 ${l.nama}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">
+              <span style="font-family:monospace">${parseFloat(l.lat).toFixed(5)}, ${parseFloat(l.lng).toFixed(5)}</span>
+              · <span style="color:var(--blue);font-weight:600">Radius ${l.radius}m</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <a href="https://maps.google.com/?q=${l.lat},${l.lng}" target="_blank"
+               class="btn btn-outline btn-sm">🗺️</a>
+            <button class="btn btn-outline btn-sm" onclick="hapusLokasi('${l.id}')" style="color:var(--red);border-color:var(--red)">🗑️</button>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+async function hapusLokasi(id) {
+  if (!confirm('Hapus lokasi ini? Karyawan cabang ini tidak akan dicek lokasinya lagi.')) return;
+  await fbDel('lokasi_kantor', id);
+  showToast('Lokasi dihapus', 'success');
+  loadLokasiList();
+}
+
+// ============================================================
+// FINGERSPOT
+// ============================================================
+async function tambahMesin() {
+  const sn     = document.getElementById('fp-sn').value.trim().toUpperCase();
+  const nama   = document.getElementById('fp-nama').value.trim();
+  const cabId  = document.getElementById('fp-cabang').value;
+
+  if (!sn || !nama || !cabId) { showToast('Semua field wajib diisi!', 'error'); return; }
+
+  const cabangList = await fbGetAll('cabang');
+  const cab = cabangList.find(c => c.id === cabId);
+
+  // Cek duplikasi SN
+  const existing = await fbQuery('mesin_fingerspot', {field:'sn', op:'==', value:sn});
+  if (existing.length) { showToast('SN sudah terdaftar!', 'error'); return; }
+
+  await fbAdd('mesin_fingerspot', {
+    sn, nama,
+    cabangId:   cabId,
+    cabangNama: cab?.nama || cabId,
+    lastSeen:   null,
+    createdAt:  Date.now()
+  });
+
+  document.getElementById('fp-sn').value = '';
+  document.getElementById('fp-nama').value = '';
+  showToast(`✅ Mesin ${nama} (${sn}) berhasil didaftarkan!`, 'success');
+  loadMesinList();
+}
+
+async function loadMesinList() {
+  const list = await fbGetAll('mesin_fingerspot');
+  const container = document.getElementById('list-mesin');
+
+  if (!list.length) {
+    container.innerHTML = '<div class="empty"><div class="icon">🖐️</div><p>Belum ada mesin terdaftar</p></div>';
+    return;
+  }
+
+  // Cek last activity per mesin
+  container.innerHTML = list.map(m => {
+    const lastSeen = m.lastSeen
+      ? new Date(m.lastSeen).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+      : 'Belum ada data';
+    const isOnline = m.lastSeen && (Date.now() - m.lastSeen) < 3600000; // < 1 jam
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:700;font-size:13px">🖐️ ${m.nama}</div>
+          <div style="font-size:11px;color:var(--muted)">
+            SN: <span style="font-family:monospace;color:var(--blue)">${m.sn}</span>
+            · ${m.cabangNama}
+          </div>
+          <div style="font-size:10px;margin-top:2px">
+            <span style="color:${isOnline?'#059669':'#94a3b8'};font-weight:600">
+              ${isOnline ? '● Online' : '○ Offline'}
+            </span>
+            <span style="color:var(--muted)"> · Terakhir: ${lastSeen}</span>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="hapusMesin('${m.id}')" style="color:var(--red);border-color:var(--red)">🗑️</button>
+      </div>`;
+  }).join('');
+}
+
+async function hapusMesin(id) {
+  if (!confirm('Hapus mesin ini?')) return;
+  await fbDel('mesin_fingerspot', id);
+  showToast('Mesin dihapus', 'success');
+  loadMesinList();
+}
+
+async function loadFingerspotLog() {
+  document.getElementById('table-fp-log').innerHTML =
+    '<tr><td colspan="8"><div class="loading"><div class="spinner"></div> Memuat...</div></td></tr>';
+
+  const all = await fbGetAll('absensi');
+  const data = all
+    .filter(a => a.sumber === 'fingerspot')
+    .sort((a,b) => b.timestamp - a.timestamp)
+    .slice(0, 50);
+
+  const tbody = document.getElementById('table-fp-log');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="icon">🖐️</div><p>Belum ada data dari fingerspot</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(a => `
+    <tr>
+      <td><strong>${a.nama}</strong></td>
+      <td style="font-family:monospace;font-size:11px;color:var(--blue)">${a.karyawanId}</td>
+      <td><span class="badge badge-hadir" style="font-size:10px">${a.cabangNama||'-'}</span></td>
+      <td style="font-size:12px">${formatTgl(a.tanggal)}</td>
+      <td style="font-family:monospace;color:var(--blue);font-size:12px">${a.waktu}</td>
+      <td><span class="badge ${a.status==='Masuk'?'badge-masuk':'badge-pulang'}">${a.status}</span></td>
+      <td style="font-size:11px">🖐️ ${a.verifikasi||'Fingerprint'}</td>
+      <td style="font-family:monospace;font-size:10px;color:var(--muted)">${a.mesinSN||'-'}</td>
+    </tr>`).join('');
+}
+
+function copyEndpoint() {
+  const url = document.getElementById('endpoint-url').textContent.trim();
+  navigator.clipboard.writeText(url).then(() => showToast('✅ URL disalin!', 'success'));
 }
 
 // ============================================================

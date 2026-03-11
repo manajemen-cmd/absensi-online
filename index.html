@@ -375,11 +375,16 @@ select option { background: white; }
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <div class="clock-display" id="clock">00:00</div>
-      <button onclick="logout()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600">Ganti</button>
+      <button onclick="showTab('absen')" id="tab-absen" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700">📸 Absen</button>
+      <button onclick="showTab('rekap')" id="tab-rekap" style="background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.7);padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600">📊 Rekap</button>
+      <button onclick="logout()" style="background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.7);padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600">🚪</button>
     </div>
   </div>
 
   <div class="main">
+
+    <!-- TAB ABSEN -->
+    <div id="panel-absen">
 
     <!-- INFO KARYAWAN -->
     <div class="card">
@@ -454,6 +459,52 @@ select option { background: white; }
         </div>
       </div>
     </div>
+
+    </div><!-- /panel-absen -->
+
+    <!-- TAB REKAP PRIBADI -->
+    <div id="panel-rekap" style="display:none">
+
+      <!-- STAT CARDS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px" id="rekap-stats">
+        <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--green)">
+          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--green)" id="stat-hadir">-</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Hadir</div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--yellow)">
+          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--yellow)" id="stat-izin">-</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Izin/Sakit</div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--accent)">
+          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--accent)" id="stat-tepat">-</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Tepat Waktu</div>
+        </div>
+        <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--red)">
+          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--red)" id="stat-telat">-</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Terlambat</div>
+        </div>
+      </div>
+
+      <!-- FILTER BULAN -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div style="flex:1">
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase">Bulan</label>
+            <input type="month" id="rekap-bulan" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 13px;font-family:inherit;font-size:13px;background:var(--surface);outline:none" onchange="loadRekapPribadi()">
+          </div>
+          <button onclick="loadRekapPribadi()" style="background:var(--accent);border:none;border-radius:10px;padding:10px 16px;color:white;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">📊 Tampilkan</button>
+        </div>
+      </div>
+
+      <!-- RIWAYAT LIST -->
+      <div class="card">
+        <div class="card-label" style="margin-bottom:14px">📅 Riwayat Kehadiran</div>
+        <div id="rekap-list">
+          <div class="loading"><div class="spinner"></div> Memuat...</div>
+        </div>
+      </div>
+
+    </div><!-- /panel-rekap -->
 
   </div>
 </div>
@@ -564,6 +615,10 @@ async function loadKaryawan() {
 
   document.getElementById('screen-setup').style.display = 'none';
   document.getElementById('screen-main').style.display = 'block';
+
+  // Set bulan default rekap = bulan ini
+  const ym = new Date().toISOString().slice(0,7);
+  document.getElementById('rekap-bulan').value = ym;
 
   // Auto ambil lokasi saat login
   setTimeout(() => ambilLokasi(), 500);
@@ -866,6 +921,121 @@ async function submitAbsen(status) {
     document.getElementById(btnId).disabled = false;
     document.getElementById(btnId).textContent = status === 'Masuk' ? '✅ Absen Masuk' : '🏠 Absen Pulang';
   }
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+function showTab(tab) {
+  document.getElementById('panel-absen').style.display = tab === 'absen' ? 'block' : 'none';
+  document.getElementById('panel-rekap').style.display = tab === 'rekap' ? 'block' : 'none';
+
+  const tAbsen = document.getElementById('tab-absen');
+  const tRekap = document.getElementById('tab-rekap');
+  if (tab === 'absen') {
+    tAbsen.style.background = 'rgba(255,255,255,0.25)';
+    tAbsen.style.color = 'white';
+    tAbsen.style.fontWeight = '700';
+    tRekap.style.background = 'rgba(255,255,255,0.1)';
+    tRekap.style.color = 'rgba(255,255,255,0.7)';
+  } else {
+    tRekap.style.background = 'rgba(255,255,255,0.25)';
+    tRekap.style.color = 'white';
+    tRekap.style.fontWeight = '700';
+    tAbsen.style.background = 'rgba(255,255,255,0.1)';
+    tAbsen.style.color = 'rgba(255,255,255,0.7)';
+    loadRekapPribadi();
+  }
+}
+
+// ============================================================
+// REKAP PRIBADI
+// ============================================================
+async function loadRekapPribadi() {
+  const bulanEl = document.getElementById('rekap-bulan');
+  const bulan = bulanEl.value;
+  if (!bulan || !currentUser) return;
+
+  document.getElementById('rekap-list').innerHTML =
+    '<div class="loading"><div class="spinner"></div> Memuat rekap...</div>';
+
+  // Ambil semua absensi user di bulan ini
+  let ref = window._db.collection('absensi');
+  const snap = await ref
+    .where('karyawanId', '==', currentUser.karyawanId)
+    .where('cabangId', '==', currentUser.cabangId)
+    .get();
+
+  const all = snap.docs.map(d => ({id: d.id, ...d.data()}))
+    .filter(a => a.tanggal && a.tanggal.startsWith(bulan))
+    .sort((a,b) => b.tanggal.localeCompare(a.tanggal));
+
+  // Kelompokkan per tanggal
+  const perTgl = {};
+  all.forEach(a => {
+    if (!perTgl[a.tanggal]) perTgl[a.tanggal] = { masuk: null, pulang: null, ket: 'Hadir' };
+    if (a.status === 'Masuk') { perTgl[a.tanggal].masuk = a.waktu; perTgl[a.tanggal].ket = a.keterangan; }
+    if (a.status === 'Pulang') perTgl[a.tanggal].pulang = a.waktu;
+  });
+
+  const entries = Object.entries(perTgl).sort((a,b) => b[0].localeCompare(a[0]));
+
+  // Hitung statistik
+  let hadir=0, izin=0, tepat=0, telat=0;
+  entries.forEach(([tgl, d]) => {
+    if (d.ket === 'Izin' || d.ket === 'Sakit') izin++;
+    else if (d.masuk) {
+      hadir++;
+      // Anggap jam masuk seharusnya 08:00
+      const [jam, menit] = d.masuk.split(':').map(Number);
+      if (jam < 8 || (jam === 8 && menit === 0)) tepat++;
+      else telat++;
+    }
+  });
+
+  document.getElementById('stat-hadir').textContent = hadir;
+  document.getElementById('stat-izin').textContent = izin;
+  document.getElementById('stat-tepat').textContent = tepat;
+  document.getElementById('stat-telat').textContent = telat;
+
+  if (!entries.length) {
+    document.getElementById('rekap-list').innerHTML =
+      '<div style="text-align:center;padding:32px;color:var(--muted)"><div style="font-size:36px;margin-bottom:8px">📭</div><div>Tidak ada data bulan ini</div></div>';
+    return;
+  }
+
+  document.getElementById('rekap-list').innerHTML = entries.map(([tgl, d]) => {
+    const tglFmt = new Date(tgl).toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short' });
+    const isIzin = d.ket === 'Izin' || d.ket === 'Sakit';
+    const [jam, menit] = d.masuk ? d.masuk.split(':').map(Number) : [0,0];
+    const terlambat = d.masuk && (jam > 8 || (jam === 8 && menit > 0));
+
+    let statusColor = '#059669';
+    let statusLabel = '✅ Hadir';
+    let statusBg = '#f0fdf4';
+    let statusBorder = '#a7f3d0';
+
+    if (isIzin) {
+      statusColor = '#7c3aed'; statusLabel = d.ket === 'Sakit' ? '🤒 Sakit' : '📋 Izin';
+      statusBg = '#faf5ff'; statusBorder = '#ddd6fe';
+    } else if (terlambat) {
+      statusColor = '#dc2626'; statusLabel = '⏰ Terlambat';
+      statusBg = '#fef2f2'; statusBorder = '#fca5a5';
+    }
+
+    return `
+      <div style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:white">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${tglFmt}</div>
+          <span style="background:${statusBg};color:${statusColor};border:1px solid ${statusBorder};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${statusLabel}</span>
+        </div>
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--muted)">
+          <span>🟢 Masuk: <strong style="color:var(--text);font-family:monospace">${d.masuk || '-'}</strong></span>
+          <span>🔴 Pulang: <strong style="color:var(--text);font-family:monospace">${d.pulang || '-'}</strong></span>
+        </div>
+        ${terlambat && d.masuk ? `<div style="margin-top:6px;font-size:11px;color:#dc2626;font-weight:600">⚠️ Terlambat ${(() => { const [j,m] = d.masuk.split(':').map(Number); const tot=(j*60+m)-(8*60); return tot+'menit'; })()}</div>` : ''}
+      </div>`;
+  }).join('');
 }
 
 // ============================================================

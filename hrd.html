@@ -294,6 +294,7 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
 
       <div class="nav-section" style="margin-top:8px">Tools</div>
       <button class="nav-item" onclick="showPage('export', this)"><span class="icon">📤</span> Export Data</button>
+      <button class="nav-item" onclick="showPage('settings', this)"><span class="icon">⚙️</span> Pengaturan</button>
     </nav>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.1)">
       <button class="nav-item" onclick="hrdLogout()" style="color:rgba(255,255,255,0.5)"><span class="icon">🚪</span> Logout</button>
@@ -510,6 +511,96 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
         </div>
       </div>
 
+      <!-- ======== SETTINGS ======== -->
+      <div class="page" id="page-settings">
+        <div style="max-width:560px">
+
+          <!-- PROFIL HRD -->
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-title" style="margin-bottom:16px">👤 Profil Admin HRD</div>
+            <div class="form-group">
+              <label>Nama Admin</label>
+              <input type="text" id="set-nama" placeholder="Nama lengkap admin">
+            </div>
+            <div class="form-group">
+              <label>Jabatan</label>
+              <input type="text" id="set-jabatan" placeholder="Contoh: HRD Manager">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="set-email" placeholder="email@perusahaan.com">
+            </div>
+            <div class="form-group">
+              <label>Nama Perusahaan</label>
+              <input type="text" id="set-perusahaan" placeholder="PT. Nama Perusahaan">
+            </div>
+            <button class="btn btn-blue" onclick="simpanProfil()">💾 Simpan Profil</button>
+          </div>
+
+          <!-- GANTI PASSWORD -->
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-title" style="margin-bottom:16px">🔑 Ganti Password HRD</div>
+            <div class="form-group">
+              <label>Password Saat Ini</label>
+              <div style="position:relative">
+                <input type="password" id="pass-lama" placeholder="Masukkan password lama">
+                <span onclick="togglePass('pass-lama')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px">👁️</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Password Baru</label>
+              <div style="position:relative">
+                <input type="password" id="pass-baru" placeholder="Min. 6 karakter" oninput="cekKekuatanPass()">
+                <span onclick="togglePass('pass-baru')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px">👁️</span>
+              </div>
+              <!-- Indikator kekuatan password -->
+              <div id="pass-strength" style="margin-top:6px;display:none">
+                <div style="display:flex;gap:4px;margin-bottom:4px">
+                  <div id="ps1" style="flex:1;height:4px;border-radius:2px;background:#e2e8f0"></div>
+                  <div id="ps2" style="flex:1;height:4px;border-radius:2px;background:#e2e8f0"></div>
+                  <div id="ps3" style="flex:1;height:4px;border-radius:2px;background:#e2e8f0"></div>
+                  <div id="ps4" style="flex:1;height:4px;border-radius:2px;background:#e2e8f0"></div>
+                </div>
+                <div id="ps-label" style="font-size:11px;font-weight:600"></div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Konfirmasi Password Baru</label>
+              <div style="position:relative">
+                <input type="password" id="pass-konfirm" placeholder="Ulangi password baru">
+                <span onclick="togglePass('pass-konfirm')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px">👁️</span>
+              </div>
+            </div>
+            <button class="btn btn-blue" onclick="gantiPassword()">🔑 Ganti Password</button>
+          </div>
+
+          <!-- INFO SISTEM -->
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px">ℹ️ Info Sistem</div>
+            <div class="info-row" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+              <span style="color:var(--muted)">Versi Sistem</span>
+              <span style="font-weight:600">v2.0.0</span>
+            </div>
+            <div class="info-row" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+              <span style="color:var(--muted)">Database</span>
+              <span style="font-weight:600">Firebase Firestore</span>
+            </div>
+            <div class="info-row" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+              <span style="color:var(--muted)">Storage Foto</span>
+              <span style="font-weight:600">Cloudinary</span>
+            </div>
+            <div class="info-row" style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px">
+              <span style="color:var(--muted)">Session</span>
+              <span style="font-weight:600;color:var(--green)">● Aktif</span>
+            </div>
+            <div style="margin-top:16px">
+              <button class="btn btn-outline" onclick="if(confirm('Yakin hapus semua data absensi?')) dbClearAbsensi()" style="color:var(--red);border-color:var(--red);width:100%">🗑️ Reset Semua Data Absensi</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /screen-app -->
@@ -523,7 +614,8 @@ const SESSION_KEY = 'hrd_session';
 
 function hrdLogin() {
   const pass = document.getElementById('hrd-password').value;
-  if (pass === HRD_PASS) {
+  const activePass = localStorage.getItem(PASS_KEY) || HRD_PASS;
+  if (pass === activePass) {
     sessionStorage.setItem(SESSION_KEY, 'true');
     showApp();
   } else {
@@ -597,6 +689,7 @@ const pageMeta = {
   karyawan: ['Manajemen Karyawan', 'Tambah & kelola karyawan per cabang'],
   cabang: ['Manajemen Cabang', 'Tambah & kelola cabang'],
   export: ['Export Data', 'Download data ke CSV'],
+  settings: ['Pengaturan', 'Profil admin & konfigurasi sistem'],
 };
 
 function showPage(name, btn) {
@@ -613,6 +706,7 @@ function showPage(name, btn) {
     rekap: loadRekap,
     karyawan: () => { loadKaryawanList(); },
     cabang: loadCabangList,
+    settings: loadSettings,
   };
   if (loaders[name]) loaders[name]();
 }
@@ -633,6 +727,7 @@ async function initApp() {
   exp2.value = today;
 
   await refreshCabangDropdowns();
+  loadSettings();
   loadDashboard();
 }
 
@@ -968,6 +1063,95 @@ function openFoto(src) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove('show');
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+const PROFIL_KEY = 'hrd_profil';
+const PASS_KEY   = 'hrd_password_custom';
+
+function loadSettings() {
+  // Load profil dari localStorage (tetap ada walau browser tutup)
+  const profil = JSON.parse(localStorage.getItem(PROFIL_KEY) || '{}');
+  if (profil.nama)        document.getElementById('set-nama').value = profil.nama;
+  if (profil.jabatan)     document.getElementById('set-jabatan').value = profil.jabatan;
+  if (profil.email)       document.getElementById('set-email').value = profil.email;
+  if (profil.perusahaan)  document.getElementById('set-perusahaan').value = profil.perusahaan;
+
+  // Update topbar nama
+  const namaAdmin = profil.nama || 'HRD Admin';
+  document.querySelector('.hrd-badge').textContent = '👤 ' + namaAdmin;
+}
+
+function simpanProfil() {
+  const profil = {
+    nama:        document.getElementById('set-nama').value.trim(),
+    jabatan:     document.getElementById('set-jabatan').value.trim(),
+    email:       document.getElementById('set-email').value.trim(),
+    perusahaan:  document.getElementById('set-perusahaan').value.trim(),
+  };
+  if (!profil.nama) { showToast('Nama admin wajib diisi!', 'error'); return; }
+  localStorage.setItem(PROFIL_KEY, JSON.stringify(profil));
+  document.querySelector('.hrd-badge').textContent = '👤 ' + profil.nama;
+  showToast('✅ Profil berhasil disimpan!', 'success');
+}
+
+function getActivePassword() {
+  return localStorage.getItem(PASS_KEY) || HRD_PASS;
+}
+
+function gantiPassword() {
+  const lama     = document.getElementById('pass-lama').value;
+  const baru     = document.getElementById('pass-baru').value;
+  const konfirm  = document.getElementById('pass-konfirm').value;
+
+  if (!lama || !baru || !konfirm) { showToast('Semua field wajib diisi!', 'error'); return; }
+  if (lama !== getActivePassword()) { showToast('❌ Password lama salah!', 'error'); return; }
+  if (baru.length < 6) { showToast('Password baru minimal 6 karakter!', 'error'); return; }
+  if (baru !== konfirm) { showToast('❌ Konfirmasi password tidak cocok!', 'error'); return; }
+
+  localStorage.setItem(PASS_KEY, baru);
+  document.getElementById('pass-lama').value = '';
+  document.getElementById('pass-baru').value = '';
+  document.getElementById('pass-konfirm').value = '';
+  document.getElementById('pass-strength').style.display = 'none';
+  showToast('✅ Password berhasil diganti!', 'success');
+}
+
+function cekKekuatanPass() {
+  const val = document.getElementById('pass-baru').value;
+  const el = document.getElementById('pass-strength');
+  if (!val) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  let score = 0;
+  if (val.length >= 6)  score++;
+  if (val.length >= 10) score++;
+  if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+  if (/[0-9]/.test(val) || /[^A-Za-z0-9]/.test(val)) score++;
+
+  const colors = ['#ef4444','#f59e0b','#3b82f6','#10b981'];
+  const labels = ['Lemah','Cukup','Kuat','Sangat Kuat'];
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('ps'+i).style.background = i <= score ? colors[score-1] : '#e2e8f0';
+  }
+  document.getElementById('ps-label').textContent = labels[score-1] || '';
+  document.getElementById('ps-label').style.color = colors[score-1] || '#94a3b8';
+}
+
+function togglePass(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+async function dbClearAbsensi() {
+  const snap = await window._db.collection('absensi').get();
+  const batch = window._db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+  showToast('🗑️ Semua data absensi dihapus', 'success');
+  loadDashboard();
 }
 
 function showToast(msg, type = 'info') {

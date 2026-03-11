@@ -652,9 +652,60 @@ function capturePhoto() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   const ctx = canvas.getContext('2d');
+
+  // Gambar video (mirror)
   ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0);
-  photoData = canvas.toDataURL('image/jpeg', 0.6);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+
+  // === WATERMARK TIMEMARK ===
+  const now = new Date();
+  const tgl = now.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+  const jam = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const nama = currentUser?.nama || '';
+  const cabang = currentUser?.cabangNama || '';
+  const lokasi_txt = lokasiData?.alamat ? lokasiData.alamat.slice(0, 40) : '';
+
+  const baris = [
+    `${tgl}  ${jam}`,
+    nama,
+    cabang,
+    lokasi_txt
+  ].filter(Boolean);
+
+  const W = canvas.width;
+  const H = canvas.height;
+  const fs = Math.max(14, Math.round(W * 0.033)); // font size responsif
+
+  // Background strip bawah
+  const stripH = (baris.length * (fs + 6)) + 16;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.fillRect(0, H - stripH, W, stripH);
+
+  // Teks putih
+  ctx.font = `bold ${fs}px monospace`;
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.textBaseline = 'bottom';
+
+  baris.forEach((line, i) => {
+    const y = H - 8 - (baris.length - 1 - i) * (fs + 6);
+    // Baris pertama (tanggal+jam) pakai warna kuning
+    if (i === 0) {
+      ctx.fillStyle = '#facc15';
+      ctx.font = `bold ${fs}px monospace`;
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `${fs - 1}px monospace`;
+    }
+    ctx.fillText(line, 10, y);
+  });
+
+  ctx.shadowBlur = 0;
+  // === END WATERMARK ===
+
+  photoData = canvas.toDataURL('image/jpeg', 0.85);
 
   document.getElementById('cam-area').innerHTML = '';
   const img = document.getElementById('photo-result');
@@ -783,20 +834,33 @@ async function submitAbsen(status) {
       timestamp: now.getTime()
     });
 
-    showToast(`${status === 'Masuk' ? '✅ Absen masuk' : '🏠 Absen pulang'} berhasil! (${waktu})`, 'success');
+    // Tampil sukses + countdown logout
+    const label = status === 'Masuk' ? '✅ Absen Masuk' : '🏠 Absen Pulang';
+    document.getElementById('action-buttons').innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:14px;padding:20px;text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">${status === 'Masuk' ? '✅' : '🏠'}</div>
+        <div style="font-size:16px;font-weight:800;color:#059669;margin-bottom:4px">${label} Berhasil!</div>
+        <div style="font-size:13px;color:#374151;margin-bottom:12px">Pukul <strong>${waktu}</strong></div>
+        <div style="font-size:12px;color:#6b7280">Otomatis keluar dalam <strong id="countdown">5</strong> detik...</div>
+        <button onclick="logout()" style="margin-top:12px;background:#059669;border:none;border-radius:10px;padding:10px 20px;color:white;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;width:100%">
+          🚪 Keluar Sekarang
+        </button>
+      </div>`;
+
+    // Countdown 5 detik lalu auto logout
+    let sisa = 5;
+    const timer = setInterval(() => {
+      sisa--;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = sisa;
+      if (sisa <= 0) {
+        clearInterval(timer);
+        logout();
+      }
+    }, 1000);
+
     photoData = null;
     lokasiData = null;
-    document.getElementById('photo-result').style.display = 'none';
-    document.getElementById('cam-area').innerHTML = `
-      <div class="cam-placeholder" onclick="startCam()">
-        <div class="icon">📷</div>
-        <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
-      </div>`;
-    document.getElementById('cam-btns').style.display = 'none';
-    document.getElementById('lokasi-status').innerHTML = 
-      '<div class="loading"><div class="spinner"></div> Mengambil lokasi otomatis...</div>';
-    ambilLokasi();
-    checkStatusHariIni();
   } catch(e) {
     showToast('Gagal menyimpan: ' + e.message, 'error');
     document.getElementById(btnId).disabled = false;

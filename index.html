@@ -25,6 +25,9 @@
   document.dispatchEvent(new Event('firebase-ready'));
 </script>
 
+<!-- FACE API untuk liveness detection -->
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
 <style>
 :root {
   --bg: #f0f4ff;
@@ -375,10 +378,20 @@ select option { background: white; }
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <div class="clock-display" id="clock">00:00</div>
-      <button onclick="showTab('absen')" id="tab-absen" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700">📸 Absen</button>
-      <button onclick="showTab('rekap')" id="tab-rekap" style="background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.7);padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600">📊 Rekap</button>
-      <button onclick="logout()" style="background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.7);padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600">🚪</button>
+      <button onclick="logout()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600">🚪 Keluar</button>
     </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div style="display:flex;background:white;border-bottom:2px solid var(--border)">
+    <button onclick="showTab('absen')" id="tab-absen"
+      style="flex:1;padding:14px;border:none;background:none;font-family:inherit;font-size:14px;font-weight:700;color:var(--accent);border-bottom:3px solid var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+      📸 Absen
+    </button>
+    <button onclick="showTab('rekap')" id="tab-rekap"
+      style="flex:1;padding:14px;border:none;background:none;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+      📊 Rekap Saya
+    </button>
   </div>
 
   <div class="main">
@@ -415,18 +428,34 @@ select option { background: white; }
       </div>
     </div>
 
-    <!-- KAMERA -->
+    <!-- KAMERA + LIVENESS -->
     <div class="card">
-      <div class="card-label">📷 Foto Selfie</div>
+      <div class="card-label">📷 Verifikasi Wajah</div>
+
+      <!-- Status liveness -->
+      <div id="liveness-status" style="margin-bottom:10px;display:none">
+        <div id="liveness-bar" style="background:#f1f5f9;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px">
+          <span id="liveness-icon">👁️</span>
+          <span id="liveness-text">Mendeteksi wajah...</span>
+        </div>
+        <!-- Step indicators -->
+        <div style="display:flex;gap:8px;margin-top:8px" id="liveness-steps">
+          <div id="step-face" style="flex:1;padding:6px;border-radius:8px;font-size:11px;font-weight:700;text-align:center;background:#f1f5f9;color:#94a3b8">👤 Wajah</div>
+          <div id="step-blink" style="flex:1;padding:6px;border-radius:8px;font-size:11px;font-weight:700;text-align:center;background:#f1f5f9;color:#94a3b8">👁️ Kedip</div>
+          <div id="step-real" style="flex:1;padding:6px;border-radius:8px;font-size:11px;font-weight:700;text-align:center;background:#f1f5f9;color:#94a3b8">✅ Asli</div>
+        </div>
+      </div>
+
       <div id="cam-area">
         <div class="cam-placeholder" onclick="startCam()">
           <div class="icon">📷</div>
           <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
+          <div style="font-size:11px;color:var(--muted)">Verifikasi wajah otomatis</div>
         </div>
       </div>
       <img id="photo-result" src="" alt="">
       <div class="btn-row" id="cam-btns" style="display:none">
-        <button class="btn btn-primary" onclick="capturePhoto()" id="btn-capture">📸 Ambil Foto</button>
+        <button class="btn btn-primary" onclick="capturePhoto()" id="btn-capture" disabled>📸 Ambil Foto</button>
         <button class="btn btn-outline" onclick="retake()" id="btn-retake" style="display:none">🔄 Ulang</button>
       </div>
     </div>
@@ -466,22 +495,14 @@ select option { background: white; }
     <div id="panel-rekap" style="display:none">
 
       <!-- STAT CARDS -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px" id="rekap-stats">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--green)">
-          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--green)" id="stat-hadir">-</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Hadir</div>
+          <div style="font-size:32px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--green)" id="stat-hadir">-</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Hari Hadir</div>
         </div>
         <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--yellow)">
-          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--yellow)" id="stat-izin">-</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Izin/Sakit</div>
-        </div>
-        <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--accent)">
-          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--accent)" id="stat-tepat">-</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Tepat Waktu</div>
-        </div>
-        <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;border-top:3px solid var(--red)">
-          <div style="font-size:26px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--red)" id="stat-telat">-</div>
-          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Terlambat</div>
+          <div style="font-size:32px;font-weight:800;font-family:JetBrains Mono,monospace;color:var(--yellow)" id="stat-izin">-</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase">Izin / Sakit</div>
         </div>
       </div>
 
@@ -518,6 +539,14 @@ let photoData = null;
 let stream = null;
 let todayStatus = { masuk: null, pulang: null };
 let lokasiData = null; // {lat, lng, akurasi, alamat}
+
+// ============================================================
+// 🔧 CLOUDINARY CONFIG (ganti dengan milik kamu)
+// Daftar gratis di cloudinary.com → dapat cloud_name & upload_preset
+// ============================================================
+const CLOUDINARY_CLOUD = 'GANTI_CLOUD_NAME';
+const CLOUDINARY_PRESET = 'GANTI_UPLOAD_PRESET'; // unsigned preset
+// ============================================================
 
 // ============================================================
 // CLOCK
@@ -627,6 +656,7 @@ async function loadKaryawan() {
 
 function logout() {
   currentUser = null; photoData = null;
+  if (livenessState.detectionLoop) { clearInterval(livenessState.detectionLoop); livenessState.detectionLoop = null; }
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   document.getElementById('screen-setup').style.display = 'flex';
   document.getElementById('screen-main').style.display = 'none';
@@ -682,23 +712,244 @@ async function checkStatusHariIni() {
 // ============================================================
 // KAMERA
 // ============================================================
-async function startCam() {
+// ============================================================
+// LIVENESS STATE
+// ============================================================
+let livenessState = {
+  faceDetected: false,
+  blinkDetected: false,
+  isRealFace: false,
+  lastEAR: null,         // Eye Aspect Ratio
+  blinkFrames: 0,
+  noFaceFrames: 0,
+  screenDetected: false,
+  detectionLoop: null,
+  faceApiReady: false
+};
+
+// Tunggu face-api model siap
+async function loadFaceModels() {
+  if (livenessState.faceApiReady) return true;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+    ]);
+    livenessState.faceApiReady = true;
+    return true;
+  } catch(e) {
+    console.warn('Face API model gagal load:', e);
+    return false;
+  }
+}
+
+function setStep(id, status) {
+  // status: 'waiting' | 'active' | 'done' | 'fail'
+  const el = document.getElementById(id);
+  if (!el) return;
+  const styles = {
+    waiting: { bg: '#f1f5f9', color: '#94a3b8' },
+    active:  { bg: '#eff6ff', color: '#2563eb' },
+    done:    { bg: '#f0fdf4', color: '#059669' },
+    fail:    { bg: '#fef2f2', color: '#dc2626' },
+  };
+  const s = styles[status] || styles.waiting;
+  el.style.background = s.bg;
+  el.style.color = s.color;
+}
+
+function setLivenessBar(icon, text, color='#374151') {
+  const bar = document.getElementById('liveness-bar');
+  if (!bar) return;
+  document.getElementById('liveness-icon').textContent = icon;
+  document.getElementById('liveness-text').textContent = text;
+  bar.style.background = color === 'green' ? '#f0fdf4' :
+                         color === 'red'   ? '#fef2f2' :
+                         color === 'blue'  ? '#eff6ff' : '#f1f5f9';
+}
+
+// Hitung Eye Aspect Ratio dari landmarks
+function calcEAR(eye) {
+  const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  const A = dist(eye[1], eye[5]);
+  const B = dist(eye[2], eye[4]);
+  const C = dist(eye[0], eye[3]);
+  return (A + B) / (2.0 * C);
+}
+
+// Deteksi apakah foto/layar (screen detection)
+function detectScreen(imageData) {
+  const data = imageData.data;
+  let pixelCount = 0, uniformCount = 0;
+  // Sample pixel setiap 10px
+  for (let i = 0; i < data.length; i += 40) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    // Layar cenderung punya pixel sangat uniform / terlalu saturasi
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    if (max - min < 15) uniformCount++; // pixel flat/uniform
+    pixelCount++;
+  }
+  // Kalau >70% pixel uniform → kemungkinan foto/layar
+  return (uniformCount / pixelCount) > 0.70;
+}
+
+async function startCam() {
+  // Reset liveness state
+  livenessState = {
+    faceDetected: false, blinkDetected: false, isRealFace: false,
+    lastEAR: null, blinkFrames: 0, noFaceFrames: 0,
+    screenDetected: false, detectionLoop: null,
+    faceApiReady: livenessState.faceApiReady
+  };
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+
     document.getElementById('cam-area').innerHTML = `
-      <div class="camera-wrap">
+      <div class="camera-wrap" style="position:relative">
         <video id="video" autoplay playsinline></video>
+        <canvas id="overlay-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></canvas>
         <div class="cam-corners">
           <span></span><span></span><span></span><span></span>
         </div>
       </div>`;
-    document.getElementById('video').srcObject = stream;
+
+    const video = document.getElementById('video');
+    video.srcObject = stream;
+    document.getElementById('liveness-status').style.display = 'block';
     document.getElementById('cam-btns').style.display = 'flex';
-    document.getElementById('btn-capture').style.display = 'flex';
+    document.getElementById('btn-capture').disabled = true;
+    document.getElementById('btn-capture').style.opacity = '0.4';
     document.getElementById('btn-retake').style.display = 'none';
+
+    setStep('step-face', 'active');
+    setStep('step-blink', 'waiting');
+    setStep('step-real', 'waiting');
+    setLivenessBar('⏳', 'Memuat model deteksi wajah...');
+
+    // Load model
+    const modelOk = await loadFaceModels();
+    if (!modelOk) {
+      // Fallback: tanpa liveness, langsung bisa foto
+      setLivenessBar('⚠️', 'Mode manual — model tidak tersedia');
+      document.getElementById('btn-capture').disabled = false;
+      document.getElementById('btn-capture').style.opacity = '1';
+      return;
+    }
+
+    setLivenessBar('👤', 'Arahkan wajah ke kamera...', 'blue');
+    await video.play();
+    startLivenessLoop();
   } catch(e) {
     showToast('Tidak bisa akses kamera', 'error');
   }
+}
+
+function startLivenessLoop() {
+  const video = document.getElementById('video');
+  if (!video) return;
+
+  livenessState.detectionLoop = setInterval(async () => {
+    if (!video || video.readyState < 2) return;
+    if (!livenessState.faceApiReady) return;
+
+    try {
+      const det = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+        .withFaceLandmarks(true);
+
+      if (!det) {
+        livenessState.noFaceFrames++;
+        if (livenessState.noFaceFrames > 10) {
+          livenessState.faceDetected = false;
+          setStep('step-face', 'active');
+          setLivenessBar('👤', 'Wajah tidak terdeteksi — hadap ke kamera', 'blue');
+        }
+        return;
+      }
+
+      livenessState.noFaceFrames = 0;
+      livenessState.faceDetected = true;
+      setStep('step-face', 'done');
+
+      // Gambar kotak wajah di overlay
+      const canvas = document.getElementById('overlay-canvas');
+      if (canvas) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const box = det.detection.box;
+        // Mirror box karena video di-mirror
+        const mx = canvas.width - box.x - box.width;
+        ctx.strokeStyle = livenessState.blinkDetected ? '#10b981' : '#2563eb';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(mx, box.y, box.width, box.height);
+      }
+
+      // === SCREEN DETECTION ===
+      if (!livenessState.isRealFace) {
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = video.videoWidth; tmpCanvas.height = video.videoHeight;
+        tmpCanvas.getContext('2d').drawImage(video, 0, 0);
+        const imgData = tmpCanvas.getContext('2d').getImageData(0, 0, tmpCanvas.width, tmpCanvas.height);
+        const isScreen = detectScreen(imgData);
+        if (isScreen) {
+          setStep('step-real', 'fail');
+          setLivenessBar('🖥️', 'Terdeteksi layar/foto — gunakan wajah asli!', 'red');
+          return;
+        }
+        livenessState.isRealFace = true;
+        setStep('step-real', 'done');
+      }
+
+      // === BLINK DETECTION ===
+      if (!livenessState.blinkDetected) {
+        const lm = det.landmarks;
+        const leftEye = lm.getLeftEye();
+        const rightEye = lm.getRightEye();
+        const earLeft = calcEAR(leftEye);
+        const earRight = calcEAR(rightEye);
+        const ear = (earLeft + earRight) / 2;
+
+        if (livenessState.lastEAR !== null) {
+          const EAR_THRESHOLD = 0.22;
+          if (ear < EAR_THRESHOLD && livenessState.lastEAR >= EAR_THRESHOLD) {
+            livenessState.blinkFrames++;
+          } else if (ear >= EAR_THRESHOLD && livenessState.blinkFrames > 0) {
+            if (livenessState.blinkFrames >= 1 && livenessState.blinkFrames <= 6) {
+              // Kedipan valid
+              livenessState.blinkDetected = true;
+              setStep('step-blink', 'done');
+            }
+            livenessState.blinkFrames = 0;
+          }
+        }
+        livenessState.lastEAR = ear;
+
+        if (!livenessState.blinkDetected) {
+          setStep('step-blink', 'active');
+          setLivenessBar('👁️', 'Silakan kedipkan mata sekali...', 'blue');
+          return;
+        }
+      }
+
+      // === SEMUA PASS ===
+      if (livenessState.faceDetected && livenessState.blinkDetected && livenessState.isRealFace) {
+        clearInterval(livenessState.detectionLoop);
+        setLivenessBar('✅', 'Verifikasi berhasil! Siap ambil foto.', 'green');
+        document.getElementById('btn-capture').disabled = false;
+        document.getElementById('btn-capture').style.opacity = '1';
+        document.getElementById('btn-capture').style.background = '#059669';
+      }
+
+    } catch(e) {
+      // Silent fail — terus loop
+    }
+  }, 150);
 }
 
 function capturePhoto() {
@@ -760,25 +1011,52 @@ function capturePhoto() {
   ctx.shadowBlur = 0;
   // === END WATERMARK ===
 
-  photoData = canvas.toDataURL('image/jpeg', 0.85);
+  // Resize canvas ke max 640px lebar supaya hemat storage
+  const MAX_W = 640;
+  let finalCanvas = canvas;
+  if (canvas.width > MAX_W) {
+    const ratio = MAX_W / canvas.width;
+    const resized = document.createElement('canvas');
+    resized.width = MAX_W;
+    resized.height = Math.round(canvas.height * ratio);
+    const rctx = resized.getContext('2d');
+    rctx.drawImage(canvas, 0, 0, resized.width, resized.height);
+    finalCanvas = resized;
+  }
+  // Kompres ke JPEG quality 0.5 (~15-25KB per foto)
+  photoData = finalCanvas.toDataURL('image/jpeg', 0.5);
 
   document.getElementById('cam-area').innerHTML = '';
   const img = document.getElementById('photo-result');
   img.src = photoData; img.style.display = 'block';
 
+  if (livenessState.detectionLoop) { clearInterval(livenessState.detectionLoop); livenessState.detectionLoop = null; }
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  document.getElementById('liveness-status').style.display = 'none';
   document.getElementById('btn-capture').style.display = 'none';
   document.getElementById('btn-retake').style.display = 'flex';
-  showToast('Foto berhasil diambil!', 'success');
+  showToast('✅ Verifikasi & foto berhasil!', 'success');
 }
 
 function retake() {
   photoData = null;
+  // Stop liveness loop
+  if (livenessState.detectionLoop) {
+    clearInterval(livenessState.detectionLoop);
+    livenessState.detectionLoop = null;
+  }
+  // Reset liveness steps UI
+  document.getElementById('liveness-status').style.display = 'none';
+  setStep('step-face', 'waiting');
+  setStep('step-blink', 'waiting');
+  setStep('step-real', 'waiting');
+
   document.getElementById('photo-result').style.display = 'none';
   document.getElementById('cam-area').innerHTML = `
     <div class="cam-placeholder" onclick="startCam()">
       <div class="icon">📷</div>
       <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
+      <div style="font-size:11px;color:var(--muted)">Verifikasi wajah otomatis</div>
     </div>`;
   document.getElementById('cam-btns').style.display = 'none';
   startCam();
@@ -855,6 +1133,36 @@ function ambilLokasi() {
 }
 
 // ============================================================
+// UPLOAD FOTO KE CLOUDINARY
+// ============================================================
+async function uploadFotoCloudinary(base64data) {
+  // Kalau belum setup Cloudinary, simpan langsung ke Firestore (fallback)
+  if (CLOUDINARY_CLOUD === 'GANTI_CLOUD_NAME') {
+    return { url: base64data, provider: 'firestore' };
+  }
+
+  try {
+    const blob = await (await fetch(base64data)).blob();
+    const fd = new FormData();
+    fd.append('file', blob, 'absen.jpg');
+    fd.append('upload_preset', CLOUDINARY_PRESET);
+    fd.append('folder', 'absensi');
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+      method: 'POST', body: fd
+    });
+    const data = await res.json();
+    if (data.secure_url) {
+      return { url: data.secure_url, provider: 'cloudinary' };
+    }
+    throw new Error(data.error?.message || 'Upload gagal');
+  } catch(e) {
+    console.warn('Cloudinary gagal, fallback ke Firestore:', e.message);
+    return { url: base64data, provider: 'firestore' };
+  }
+}
+
+// ============================================================
 // SUBMIT ABSEN
 // ============================================================
 async function submitAbsen(status) {
@@ -868,9 +1176,13 @@ async function submitAbsen(status) {
 
   const btnId = status === 'Masuk' ? 'btn-masuk' : 'btn-pulang';
   document.getElementById(btnId).disabled = true;
-  document.getElementById(btnId).textContent = '⏳ Menyimpan...';
+  document.getElementById(btnId).textContent = '⏳ Upload foto...';
 
   try {
+    // Upload foto ke Cloudinary dulu
+    const { url: fotoUrl, provider } = await uploadFotoCloudinary(photoData);
+    document.getElementById(btnId).textContent = '⏳ Menyimpan...';
+
     await fbAdd('absensi', {
       karyawanId: currentUser.karyawanId,
       nama: currentUser.nama,
@@ -879,7 +1191,8 @@ async function submitAbsen(status) {
       cabangNama: currentUser.cabangNama,
       tanggal, waktu, status,
       keterangan: ket,
-      foto: photoData,
+      foto: fotoUrl,
+      fotoProvider: provider,
       lokasi: lokasiData ? {
         lat: lokasiData.lat,
         lng: lokasiData.lng,
@@ -932,18 +1245,24 @@ function showTab(tab) {
 
   const tAbsen = document.getElementById('tab-absen');
   const tRekap = document.getElementById('tab-rekap');
+
+  // Reset dulu
+  tAbsen.style.color = 'var(--muted)';
+  tAbsen.style.borderBottom = '3px solid transparent';
+  tAbsen.style.fontWeight = '600';
+  tRekap.style.color = 'var(--muted)';
+  tRekap.style.borderBottom = '3px solid transparent';
+  tRekap.style.fontWeight = '600';
+
+  // Aktifkan tab terpilih
   if (tab === 'absen') {
-    tAbsen.style.background = 'rgba(255,255,255,0.25)';
-    tAbsen.style.color = 'white';
+    tAbsen.style.color = 'var(--accent)';
+    tAbsen.style.borderBottom = '3px solid var(--accent)';
     tAbsen.style.fontWeight = '700';
-    tRekap.style.background = 'rgba(255,255,255,0.1)';
-    tRekap.style.color = 'rgba(255,255,255,0.7)';
   } else {
-    tRekap.style.background = 'rgba(255,255,255,0.25)';
-    tRekap.style.color = 'white';
+    tRekap.style.color = 'var(--accent)';
+    tRekap.style.borderBottom = '3px solid var(--accent)';
     tRekap.style.fontWeight = '700';
-    tAbsen.style.background = 'rgba(255,255,255,0.1)';
-    tAbsen.style.color = 'rgba(255,255,255,0.7)';
     loadRekapPribadi();
   }
 }
@@ -952,23 +1271,19 @@ function showTab(tab) {
 // REKAP PRIBADI
 // ============================================================
 async function loadRekapPribadi() {
-  const bulanEl = document.getElementById('rekap-bulan');
-  const bulan = bulanEl.value;
+  const bulan = document.getElementById('rekap-bulan').value;
   if (!bulan || !currentUser) return;
 
   document.getElementById('rekap-list').innerHTML =
     '<div class="loading"><div class="spinner"></div> Memuat rekap...</div>';
 
-  // Ambil semua absensi user di bulan ini
-  let ref = window._db.collection('absensi');
-  const snap = await ref
+  const snap = await window._db.collection('absensi')
     .where('karyawanId', '==', currentUser.karyawanId)
     .where('cabangId', '==', currentUser.cabangId)
     .get();
 
   const all = snap.docs.map(d => ({id: d.id, ...d.data()}))
-    .filter(a => a.tanggal && a.tanggal.startsWith(bulan))
-    .sort((a,b) => b.tanggal.localeCompare(a.tanggal));
+    .filter(a => a.tanggal && a.tanggal.startsWith(bulan));
 
   // Kelompokkan per tanggal
   const perTgl = {};
@@ -980,23 +1295,15 @@ async function loadRekapPribadi() {
 
   const entries = Object.entries(perTgl).sort((a,b) => b[0].localeCompare(a[0]));
 
-  // Hitung statistik
-  let hadir=0, izin=0, tepat=0, telat=0;
-  entries.forEach(([tgl, d]) => {
+  // Hitung statistik sederhana
+  let hadir = 0, izin = 0;
+  entries.forEach(([, d]) => {
     if (d.ket === 'Izin' || d.ket === 'Sakit') izin++;
-    else if (d.masuk) {
-      hadir++;
-      // Anggap jam masuk seharusnya 08:00
-      const [jam, menit] = d.masuk.split(':').map(Number);
-      if (jam < 8 || (jam === 8 && menit === 0)) tepat++;
-      else telat++;
-    }
+    else if (d.masuk) hadir++;
   });
 
   document.getElementById('stat-hadir').textContent = hadir;
   document.getElementById('stat-izin').textContent = izin;
-  document.getElementById('stat-tepat').textContent = tepat;
-  document.getElementById('stat-telat').textContent = telat;
 
   if (!entries.length) {
     document.getElementById('rekap-list').innerHTML =
@@ -1005,35 +1312,32 @@ async function loadRekapPribadi() {
   }
 
   document.getElementById('rekap-list').innerHTML = entries.map(([tgl, d]) => {
-    const tglFmt = new Date(tgl).toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short' });
+    const tglFmt = new Date(tgl).toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long' });
     const isIzin = d.ket === 'Izin' || d.ket === 'Sakit';
-    const [jam, menit] = d.masuk ? d.masuk.split(':').map(Number) : [0,0];
-    const terlambat = d.masuk && (jam > 8 || (jam === 8 && menit > 0));
 
-    let statusColor = '#059669';
-    let statusLabel = '✅ Hadir';
-    let statusBg = '#f0fdf4';
-    let statusBorder = '#a7f3d0';
-
+    let statusColor = '#059669', statusLabel = '✅ Hadir', statusBg = '#f0fdf4', statusBorder = '#a7f3d0';
     if (isIzin) {
-      statusColor = '#7c3aed'; statusLabel = d.ket === 'Sakit' ? '🤒 Sakit' : '📋 Izin';
+      statusColor = '#7c3aed';
+      statusLabel = d.ket === 'Sakit' ? '🤒 Sakit' : '📋 Izin';
       statusBg = '#faf5ff'; statusBorder = '#ddd6fe';
-    } else if (terlambat) {
-      statusColor = '#dc2626'; statusLabel = '⏰ Terlambat';
-      statusBg = '#fef2f2'; statusBorder = '#fca5a5';
     }
 
     return `
       <div style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:white">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div style="font-size:13px;font-weight:700;color:var(--text)">${tglFmt}</div>
           <span style="background:${statusBg};color:${statusColor};border:1px solid ${statusBorder};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${statusLabel}</span>
         </div>
-        <div style="display:flex;gap:16px;font-size:12px;color:var(--muted)">
-          <span>🟢 Masuk: <strong style="color:var(--text);font-family:monospace">${d.masuk || '-'}</strong></span>
-          <span>🔴 Pulang: <strong style="color:var(--text);font-family:monospace">${d.pulang || '-'}</strong></span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:var(--green-light);border:1px solid #a7f3d0;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:4px">🟢 Masuk</div>
+            <div style="font-size:16px;font-weight:800;font-family:monospace;color:var(--text)">${d.masuk || '-'}</div>
+          </div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#ea580c;font-weight:700;text-transform:uppercase;margin-bottom:4px">🔴 Pulang</div>
+            <div style="font-size:16px;font-weight:800;font-family:monospace;color:var(--text)">${d.pulang || '-'}</div>
+          </div>
         </div>
-        ${terlambat && d.masuk ? `<div style="margin-top:6px;font-size:11px;color:#dc2626;font-weight:600">⚠️ Terlambat ${(() => { const [j,m] = d.masuk.split(':').map(Number); const tot=(j*60+m)-(8*60); return tot+'menit'; })()}</div>` : ''}
       </div>`;
   }).join('');
 }

@@ -430,9 +430,7 @@ select option { background: white; }
     <div class="card" id="lokasi-card">
       <div class="card-label">📍 Lokasi GPS</div>
       <div id="lokasi-status">
-        <div class="alert alert-info" style="cursor:pointer" onclick="ambilLokasi()">
-          📍 Tap untuk ambil lokasi GPS
-        </div>
+        <div class="loading"><div class="spinner"></div> Mengambil lokasi otomatis...</div>
       </div>
     </div>
 
@@ -567,6 +565,8 @@ async function loadKaryawan() {
   document.getElementById('screen-setup').style.display = 'none';
   document.getElementById('screen-main').style.display = 'block';
 
+  // Auto ambil lokasi saat login
+  setTimeout(() => ambilLokasi(), 500);
   checkStatusHariIni();
 }
 
@@ -683,8 +683,9 @@ function retake() {
 // ============================================================
 function ambilLokasi() {
   const el = document.getElementById('lokasi-status');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div> Mengambil lokasi GPS...</div>';
-  
+  if (!el) return;
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Mengambil lokasi otomatis...</div>';
+
   if (!navigator.geolocation) {
     el.innerHTML = '<div class="alert" style="background:#fef3c7;color:#d97706;border:1px solid #fde68a">⚠️ GPS tidak didukung browser ini</div>';
     return;
@@ -697,12 +698,11 @@ function ambilLokasi() {
       const akurasi = Math.round(pos.coords.accuracy);
       lokasiData = { lat, lng, akurasi };
 
-      // Coba reverse geocode pakai nominatim (gratis)
+      // Reverse geocode pakai Nominatim (gratis)
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
         const data = await res.json();
         const alamat = data.display_name || `${lat}, ${lng}`;
-        // Ambil bagian alamat yang pendek saja
         const parts = alamat.split(',');
         lokasiData.alamat = parts.slice(0,3).join(',').trim();
       } catch(e) {
@@ -714,32 +714,34 @@ function ambilLokasi() {
 
       el.innerHTML = `
         <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:10px;padding:12px">
-          <div style="font-size:13px;font-weight:700;color:#059669;margin-bottom:6px">✅ Lokasi berhasil diambil</div>
+          <div style="font-size:13px;font-weight:700;color:#059669;margin-bottom:6px">✅ Lokasi terdeteksi otomatis</div>
           <div style="font-size:12px;color:#374151;line-height:1.6">
             <div>📍 <strong>${lokasiData.alamat}</strong></div>
-            <div style="margin-top:4px;display:flex;gap:12px">
+            <div style="margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">
               <span style="font-family:monospace;font-size:11px;color:#6b7280">${lat}, ${lng}</span>
               <span style="font-size:11px;color:${akurasiColor};font-weight:700">${akurasiLabel} (±${akurasi}m)</span>
             </div>
           </div>
-          <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" 
-             style="display:inline-block;margin-top:8px;font-size:11px;color:#2563eb;text-decoration:none;font-weight:600">
-            🗺️ Lihat di Google Maps
-          </a>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank"
+               style="font-size:11px;color:#2563eb;text-decoration:none;font-weight:600">
+              🗺️ Lihat di Google Maps
+            </a>
+            <button onclick="ambilLokasi()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;color:#64748b;font-family:inherit;font-weight:600">🔄 Perbarui</button>
+          </div>
         </div>
-        <button onclick="ambilLokasi()" style="margin-top:8px;background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:11px;cursor:pointer;color:#64748b;font-family:inherit;font-weight:600">🔄 Perbarui Lokasi</button>
       `;
-      showToast('📍 Lokasi berhasil diambil!', 'success');
     },
     (err) => {
       lokasiData = null;
-      let msg = 'Gagal ambil lokasi';
-      if (err.code === 1) msg = 'Izin lokasi ditolak — aktifkan GPS di browser';
-      if (err.code === 2) msg = 'Sinyal GPS lemah, coba di luar ruangan';
-      if (err.code === 3) msg = 'Timeout, coba lagi';
-      document.getElementById('lokasi-status').innerHTML = 
-        `<div class="alert" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer" onclick="ambilLokasi()">
-          ❌ ${msg} — Tap untuk coba lagi
+      let msg = 'Gagal ambil lokasi otomatis';
+      if (err.code === 1) msg = 'Izin GPS ditolak — aktifkan di pengaturan browser';
+      if (err.code === 2) msg = 'Sinyal GPS lemah, coba di area terbuka';
+      if (err.code === 3) msg = 'GPS timeout, koneksi mungkin lambat';
+      el.innerHTML = `
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px">
+          <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:6px">❌ ${msg}</div>
+          <button onclick="ambilLokasi()" style="background:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;color:white;font-family:inherit;font-weight:700">🔄 Coba Lagi</button>
         </div>`;
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -792,7 +794,8 @@ async function submitAbsen(status) {
       </div>`;
     document.getElementById('cam-btns').style.display = 'none';
     document.getElementById('lokasi-status').innerHTML = 
-      '<div class="alert alert-info" style="cursor:pointer" onclick="ambilLokasi()">📍 Tap untuk ambil lokasi GPS</div>';
+      '<div class="loading"><div class="spinner"></div> Mengambil lokasi otomatis...</div>';
+    ambilLokasi();
     checkStatusHariIni();
   } catch(e) {
     showToast('Gagal menyimpan: ' + e.message, 'error');

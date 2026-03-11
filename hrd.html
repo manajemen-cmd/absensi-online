@@ -341,7 +341,7 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Foto</th><th>Nama</th><th>Cabang</th><th>Waktu</th><th>Status</th></tr></thead>
+                <thead><tr><th>Foto</th><th>Nama</th><th>Cabang</th><th>Waktu</th><th>Status</th><th>Lokasi</th></tr></thead>
                 <tbody id="dash-recent-table"></tbody>
               </table>
             </div>
@@ -380,7 +380,7 @@ input:focus, select:focus { border-color: var(--blue); background: white; box-sh
 
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Foto</th><th>Nama</th><th>ID</th><th>Cabang</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Foto</th><th>Nama</th><th>ID</th><th>Cabang</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Keterangan</th><th>Lokasi</th><th>Aksi</th></tr></thead>
               <tbody id="table-absensi"></tbody>
             </table>
           </div>
@@ -675,6 +675,7 @@ async function loadDashboard() {
       <td style="font-size:12px">${a.cabangNama || '-'}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--blue)">${a.waktu}</td>
       <td><span class="badge ${a.status === 'Masuk' ? 'badge-masuk' : 'badge-pulang'}">${a.status}</span></td>
+      <td style="font-size:11px">${a.lokasi ? `<a href="https://maps.google.com/?q=${a.lokasi.lat},${a.lokasi.lng}" target="_blank" style="color:#2563eb;font-weight:600;text-decoration:none">🗺️ Maps</a>` : '-'}</td>
     </tr>`).join('') : '<tr><td colspan="5"><div class="empty"><p>Belum ada data</p></div></td></tr>';
 }
 
@@ -719,6 +720,18 @@ function renderAbsensi() {
       <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);font-size:12px">${a.waktu}</td>
       <td><span class="badge ${a.status === 'Masuk' ? 'badge-masuk' : 'badge-pulang'}">${a.status}</span></td>
       <td style="font-size:12px">${a.keterangan}</td>
+      <td style="font-size:11px;max-width:160px">
+        ${a.lokasi ? `
+          <div style="color:#374151;font-weight:500">${a.lokasi.alamat || '-'}</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:3px">
+            <span style="font-family:monospace;font-size:10px;color:#6b7280">${a.lokasi.lat}, ${a.lokasi.lng}</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:3px">
+            <span style="font-size:10px;color:${Number(a.lokasi.akurasi)<=50?'#059669':Number(a.lokasi.akurasi)<=150?'#d97706':'#dc2626'};font-weight:600">±${a.lokasi.akurasi}m</span>
+            <a href="https://maps.google.com/?q=${a.lokasi.lat},${a.lokasi.lng}" target="_blank" style="font-size:10px;color:#2563eb;font-weight:600;text-decoration:none">🗺️ Maps</a>
+          </div>
+        ` : '<span style="color:#9ca3af">-</span>'}
+      </td>
       <td><button class="btn btn-outline btn-sm" onclick="hapusAbsensi('${a.id}')" style="color:var(--red);border-color:var(--red)">🗑️</button></td>
     </tr>`).join('');
 }
@@ -891,8 +904,14 @@ async function exportCSV() {
 
   if (!data.length) { showToast('Tidak ada data untuk diexport', 'error'); return; }
 
-  const header = ['Nama', 'ID Karyawan', 'Jabatan', 'Cabang', 'Tanggal', 'Waktu', 'Status', 'Keterangan'];
-  const rows = data.map(a => [a.nama, a.karyawanId, a.jabatan||'', a.cabangNama||'', a.tanggal, a.waktu, a.status, a.keterangan]);
+  const header = ['Nama', 'ID Karyawan', 'Jabatan', 'Cabang', 'Tanggal', 'Waktu', 'Status', 'Keterangan', 'Alamat Lokasi', 'Koordinat', 'Akurasi GPS'];
+  const rows = data.map(a => [
+    a.nama, a.karyawanId, a.jabatan||'', a.cabangNama||'',
+    a.tanggal, a.waktu, a.status, a.keterangan,
+    a.lokasi?.alamat||'-',
+    a.lokasi ? `${a.lokasi.lat}, ${a.lokasi.lng}` : '-',
+    a.lokasi ? `±${a.lokasi.akurasi}m` : '-'
+  ]);
   downloadCSV([header, ...rows], `absensi_${dari}_${sampai}.csv`);
   showToast('CSV berhasil didownload!', 'success');
 }

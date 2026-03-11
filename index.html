@@ -426,6 +426,16 @@ select option { background: white; }
       </div>
     </div>
 
+    <!-- LOKASI -->
+    <div class="card" id="lokasi-card">
+      <div class="card-label">📍 Lokasi GPS</div>
+      <div id="lokasi-status">
+        <div class="alert alert-info" style="cursor:pointer" onclick="ambilLokasi()">
+          📍 Tap untuk ambil lokasi GPS
+        </div>
+      </div>
+    </div>
+
     <!-- FORM ABSEN -->
     <div class="card">
       <div class="card-label">✍️ Absensi</div>
@@ -458,6 +468,7 @@ let currentUser = null;
 let photoData = null;
 let stream = null;
 let todayStatus = { masuk: null, pulang: null };
+let lokasiData = null; // {lat, lng, akurasi, alamat}
 
 // ============================================================
 // CLOCK
@@ -668,10 +679,79 @@ function retake() {
 }
 
 // ============================================================
+// LOKASI GPS
+// ============================================================
+function ambilLokasi() {
+  const el = document.getElementById('lokasi-status');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Mengambil lokasi GPS...</div>';
+  
+  if (!navigator.geolocation) {
+    el.innerHTML = '<div class="alert" style="background:#fef3c7;color:#d97706;border:1px solid #fde68a">⚠️ GPS tidak didukung browser ini</div>';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      const akurasi = Math.round(pos.coords.accuracy);
+      lokasiData = { lat, lng, akurasi };
+
+      // Coba reverse geocode pakai nominatim (gratis)
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+        const data = await res.json();
+        const alamat = data.display_name || `${lat}, ${lng}`;
+        // Ambil bagian alamat yang pendek saja
+        const parts = alamat.split(',');
+        lokasiData.alamat = parts.slice(0,3).join(',').trim();
+      } catch(e) {
+        lokasiData.alamat = `${lat}, ${lng}`;
+      }
+
+      const akurasiColor = akurasi <= 50 ? '#059669' : akurasi <= 150 ? '#d97706' : '#dc2626';
+      const akurasiLabel = akurasi <= 50 ? '✅ Akurat' : akurasi <= 150 ? '⚠️ Cukup' : '❌ Kurang akurat';
+
+      el.innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:10px;padding:12px">
+          <div style="font-size:13px;font-weight:700;color:#059669;margin-bottom:6px">✅ Lokasi berhasil diambil</div>
+          <div style="font-size:12px;color:#374151;line-height:1.6">
+            <div>📍 <strong>${lokasiData.alamat}</strong></div>
+            <div style="margin-top:4px;display:flex;gap:12px">
+              <span style="font-family:monospace;font-size:11px;color:#6b7280">${lat}, ${lng}</span>
+              <span style="font-size:11px;color:${akurasiColor};font-weight:700">${akurasiLabel} (±${akurasi}m)</span>
+            </div>
+          </div>
+          <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" 
+             style="display:inline-block;margin-top:8px;font-size:11px;color:#2563eb;text-decoration:none;font-weight:600">
+            🗺️ Lihat di Google Maps
+          </a>
+        </div>
+        <button onclick="ambilLokasi()" style="margin-top:8px;background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:11px;cursor:pointer;color:#64748b;font-family:inherit;font-weight:600">🔄 Perbarui Lokasi</button>
+      `;
+      showToast('📍 Lokasi berhasil diambil!', 'success');
+    },
+    (err) => {
+      lokasiData = null;
+      let msg = 'Gagal ambil lokasi';
+      if (err.code === 1) msg = 'Izin lokasi ditolak — aktifkan GPS di browser';
+      if (err.code === 2) msg = 'Sinyal GPS lemah, coba di luar ruangan';
+      if (err.code === 3) msg = 'Timeout, coba lagi';
+      document.getElementById('lokasi-status').innerHTML = 
+        `<div class="alert" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer" onclick="ambilLokasi()">
+          ❌ ${msg} — Tap untuk coba lagi
+        </div>`;
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+// ============================================================
 // SUBMIT ABSEN
 // ============================================================
 async function submitAbsen(status) {
   if (!photoData) { showToast('Ambil foto selfie dulu!', 'error'); return; }
+  if (!lokasiData) { showToast('Ambil lokasi GPS dulu!', 'error'); return; }
 
   const now = new Date();
   const waktu = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -692,11 +772,18 @@ async function submitAbsen(status) {
       tanggal, waktu, status,
       keterangan: ket,
       foto: photoData,
+      lokasi: lokasiData ? {
+        lat: lokasiData.lat,
+        lng: lokasiData.lng,
+        akurasi: lokasiData.akurasi,
+        alamat: lokasiData.alamat
+      } : null,
       timestamp: now.getTime()
     });
 
     showToast(`${status === 'Masuk' ? '✅ Absen masuk' : '🏠 Absen pulang'} berhasil! (${waktu})`, 'success');
     photoData = null;
+    lokasiData = null;
     document.getElementById('photo-result').style.display = 'none';
     document.getElementById('cam-area').innerHTML = `
       <div class="cam-placeholder" onclick="startCam()">
@@ -704,6 +791,8 @@ async function submitAbsen(status) {
         <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
       </div>`;
     document.getElementById('cam-btns').style.display = 'none';
+    document.getElementById('lokasi-status').innerHTML = 
+      '<div class="alert alert-info" style="cursor:pointer" onclick="ambilLokasi()">📍 Tap untuk ambil lokasi GPS</div>';
     checkStatusHariIni();
   } catch(e) {
     showToast('Gagal menyimpan: ' + e.message, 'error');

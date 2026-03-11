@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HRD Dashboard — Absensi Multi-Cabang</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- FIREBASE -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc,
+           query, where, orderBy, setDoc, updateDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ============================================================
+  // 🔧 GANTI DENGAN KONFIGURASI FIREBASE KAMU (SAMA SEPERTI index.html)
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyAF22vg9Nu4OpVgk_9DcJpKsR0thlK75vQ",
+    authDomain: "absensi-perusahaan-9a406.firebaseapp.com",
+    projectId: "absensi-perusahaan-9a406",
+    storageBucket: "absensi-perusahaan-9a406.firebasestorage.app",
+    messagingSenderId: "864080096300",
+    appId: "1:864080096300:web:8ceba34272492c8c91f589",
+    measurementId: "G-X0Z4GX0YN8"
+  };
+  // ============================================================
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window._db = db;
+  window._fbReady = true;
+  window._col = collection; window._addDoc = addDoc;
+  window._getDocs = getDocs; window._deleteDoc = deleteDoc;
+  window._doc = doc; window._query = query;
+  window._where = where; window._orderBy = orderBy;
+  window._setDoc = setDoc; window._updateDoc = updateDoc;
+
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<style>
+:root {
+  --bg: #f1f5f9;
+  --white: #ffffff;
+  --surface: #f8fafc;
+  --border: #e2e8f0;
+  --accent: #0f172a;
+  --blue: #2563eb;
+  --blue-light: #eff6ff;
+  --green: #059669;
+  --green-light: #ecfdf5;
+  --red: #dc2626;
+  --yellow: #d97706;
+  --purple: #7c3aed;
+  --text: #0f172a;
+  --muted: #64748b;
+  --shadow: 0 1px 8px rgba(15,23,42,0.06);
+  --shadow-md: 0 4px 20px rgba(15,23,42,0.09);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 240px; background: var(--accent); color: white;
+  position: fixed; left: 0; top: 0; bottom: 0;
+  display: flex; flex-direction: column;
+  z-index: 50;
+}
+
+.sidebar-logo {
+  padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon { font-size: 24px; }
+.logo-text { font-size: 15px; font-weight: 800; }
+.logo-sub { font-size: 10px; opacity: 0.5; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; }
+
+.nav { padding: 12px 0; flex: 1; overflow-y: auto; }
+
+.nav-section {
+  padding: 8px 16px 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: rgba(255,255,255,0.35);
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.65);
+  transition: all 0.15s; border-radius: 0;
+  border: none; background: none; width: 100%; text-align: left;
+}
+.nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+.nav-item.active { background: var(--blue); color: white; }
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+/* MAIN */
+.main { margin-left: 240px; min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  background: white; border-bottom: 1px solid var(--border);
+  padding: 0 28px; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 40;
+  box-shadow: var(--shadow);
+}
+
+.page-title { font-size: 17px; font-weight: 800; }
+.page-sub { font-size: 12px; color: var(--muted); }
+
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.hrd-badge {
+  background: var(--blue-light); color: var(--blue);
+  border: 1px solid #bfdbfe; padding: 5px 12px;
+  border-radius: 20px; font-size: 12px; font-weight: 700;
+}
+
+/* CONTENT */
+.content { padding: 24px 28px; }
+
+/* PAGE visibility */
+.page { display: none; }
+.page.active { display: block; }
+
+/* CARDS */
+.card {
+  background: white; border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+
+.stat {
+  background: white; border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+.stat-val { font-size: 28px; font-weight: 800; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+.stat-lbl { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-blue { border-top: 3px solid var(--blue); }
+.stat-green { border-top: 3px solid var(--green); }
+.stat-yellow { border-top: 3px solid var(--yellow); }
+.stat-purple { border-top: 3px solid var(--purple); }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead tr { background: var(--surface); }
+th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafbff; }
+
+.thumb { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; border: 1.5px solid var(--border); cursor: pointer; transition: 0.2s; }
+.thumb:hover { border-color: var(--blue); transform: scale(1.1); }
+
+/* BADGE */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+.badge-masuk { background: #d1fae5; color: var(--green); }
+.badge-pulang { background: #fef3c7; color: var(--yellow); }
+.badge-izin { background: #ede9fe; color: var(--purple); }
+.badge-hadir { background: #dbeafe; color: var(--blue); }
+
+/* FORM */
+.form-group { margin-bottom: 14px; }
+label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+input, select {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 13px; color: var(--text);
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px;
+  background: var(--surface); outline: none; transition: 0.2s;
+}
+input:focus, select:focus { border-color: var(--blue); background: white; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+
+/* BUTTONS */
+.btn { padding: 10px 18px; border-radius: 10px; border: none; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-blue { background: var(--blue); color: white; box-shadow: 0 3px 10px rgba(37,99,235,0.25); }
+.btn-blue:hover { background: #1d4ed8; }
+.btn-green { background: var(--green); color: white; }
+.btn-green:hover { background: #047857; }
+.btn-red { background: var(--red); color: white; }
+.btn-outline { background: white; border: 1.5px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--blue); color: var(--blue); }
+.btn-full { width: 100%; justify-content: center; }
+.btn-sm { padding: 6px 12px; font-size: 11px; border-radius: 7px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* FILTER ROW */
+.filter-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-row .form-group { margin: 0; }
+.filter-row select, .filter-row input { min-width: 150px; }
+
+/* GRID 2 COL */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 999; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal-box { background: white; border-radius: 20px; padding: 24px; max-width: 520px; width: 90%; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.modal-img { width: 100%; border-radius: 12px; border: 1px solid var(--border); }
+.modal-close { cursor: pointer; font-size: 20px; color: var(--muted); }
+
+/* EMPTY */
+.empty { text-align: center; padding: 40px; color: var(--muted); }
+.empty .icon { font-size: 40px; margin-bottom: 8px; }
+
+/* TOAST */
+.toast-wrap { position: fixed; top: 70px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 11px 15px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow-md); max-width: 280px; animation: tin 0.3s ease; border-left: 3px solid var(--blue); }
+.toast.success { border-left-color: var(--green); }
+.toast.error { border-left-color: var(--red); }
+@keyframes tin { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.loading { display: flex; align-items: center; gap: 8px; padding: 16px; color: var(--muted); font-size: 13px; }
+.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* HRD LOGIN */
+#screen-login { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
+.login-card { background: white; border-radius: 20px; padding: 36px 32px; width: 360px; box-shadow: var(--shadow-md); text-align: center; }
+.login-icon { font-size: 48px; margin-bottom: 12px; }
+.login-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.login-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+#screen-app { display: none; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .stats-row { grid-template-columns: repeat(2,1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- MODAL FOTO -->
+<div class="modal-overlay" id="modal-foto" onclick="closeModal('modal-foto')">
+  <div onclick="event.stopPropagation()">
+    <img class="modal-img" id="modal-img-src" src="" style="max-height:85vh;border-radius:16px;border:2px solid #e2e8f0">
+  </div>
+</div>
+
+<!-- MODAL UMUM -->
+<div class="modal-overlay" id="modal-main">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">
+      <span id="modal-title-text">Modal</span>
+      <span class="modal-close" onclick="closeModal('modal-main')">✕</span>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ======================== LOGIN HRD ======================== -->
+<div id="screen-login">
+  <div class="login-card">
+    <div class="login-icon">🔐</div>
+    <div class="login-title">HRD Dashboard</div>
+    <div class="login-sub">Login untuk akses panel admin</div>
+    <div class="form-group" style="text-align:left">
+      <label>Password HRD</label>
+      <input type="password" id="hrd-password" placeholder="Masukkan password..." onkeydown="if(event.key==='Enter') hrdLogin()">
+    </div>
+    <button class="btn btn-blue btn-full" onclick="hrdLogin()">🔑 Masuk</button>
+    <div style="margin-top:12px;font-size:11px;color:var(--muted)">Default password: <strong>hrd2024</strong></div>
+  </div>
+</div>
+
+<!-- ======================== APP ======================== -->
+<div id="screen-app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">📊</div>
+      <div>
+        <div class="logo-text">HRD Panel</div>
+        <div class="logo-sub">Multi Cabang</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Utama</div>
+      <button class="nav-item active" onclick="showPage('dashboard', this)"><span class="icon">📊</span> Dashboard</button>
+      <button class="nav-item" onclick="showPage('absensi', this)"><span class="icon">📋</span> Data Absensi</button>
+      <button class="nav-item" onclick="showPage('rekap', this)"><span class="icon">📅</span> Rekap Harian</button>
+
+      <div class="nav-section" style="margin-top:8px">Manajemen</div>
+      <button class="nav-item" onclick="showPage('karyawan', this)"><span class="icon">👥</span> Karyawan</button>
+      <button class="nav-item" onclick="showPage('cabang', this)"><span class="icon">🏢</span> Cabang</button>
+
+      <div class="nav-section" style="margin-top:8px">Tools</div>
+      <button class="nav-item" onclick="showPage('export', this)"><span class="icon">📤</span> Export Data</button>
+    </nav>
+    <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.1)">
+      <button class="nav-item" onclick="hrdLogout()" style="color:rgba(255,255,255,0.5)"><span class="icon">🚪</span> Logout</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="topbar-title">Dashboard</div>
+        <div class="page-sub" id="topbar-sub">Ringkasan semua cabang</div>
+      </div>
+      <div class="topbar-right">
+        <div class="hrd-badge">👤 HRD Admin</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ======== DASHBOARD ======== -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-row" id="dash-stats">
+          <div class="stat stat-blue"><div class="stat-val" id="d-total">-</div><div class="stat-lbl">Total Absensi</div></div>
+          <div class="stat stat-green"><div class="stat-val" id="d-hadir">-</div><div class="stat-lbl">Hadir Hari Ini</div></div>
+          <div class="stat stat-yellow"><div class="stat-val" id="d-izin">-</div><div class="stat-lbl">Izin/Sakit</div></div>
+          <div class="stat stat-purple"><div class="stat-val" id="d-cabang">-</div><div class="stat-lbl">Total Cabang</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📍 Rekap per Cabang (Hari Ini)</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Cabang</th><th>Hadir</th><th>Izin</th><th>Total</th></tr></thead>
+                <tbody id="dash-cabang-table"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🕐 Absensi Terbaru</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Foto</th><th>Nama</th><th>Cabang</th><th>Waktu</th><th>Status</th></tr></thead>
+                <tbody id="dash-recent-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== ABSENSI ======== -->
+      <div class="page" id="page-absensi">
+        <div class="card">
+          <div class="filter-row">
+            <div class="form-group">
+              <label>Cabang</label>
+              <select id="filter-cabang-absensi" onchange="loadAbsensiData()">
+                <option value="">Semua Cabang</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tanggal</label>
+              <input type="date" id="filter-tgl-absensi" onchange="loadAbsensiData()">
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="filter-status-absensi" onchange="loadAbsensiData()">
+                <option value="">Semua</option>
+                <option value="Masuk">Masuk</option>
+                <option value="Pulang">Pulang</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Cari</label>
+              <input type="text" id="filter-search-absensi" placeholder="Nama / ID..." oninput="loadAbsensiData()">
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="loadAbsensiData()">🔄 Refresh</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Foto</th><th>Nama</th><th>ID</th><th>Cabang</th><th>Tanggal</th><th>Waktu</th><th>Status</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+              <tbody id="table-absensi"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== REKAP HARIAN ======== -->
+      <div class="page" id="page-rekap">
+        <div class="card" style="margin-bottom:16px">
+          <div class="filter-row">
+            <div class="form-group">
+              <label>Cabang</label>
+              <select id="filter-cabang-rekap" onchange="loadRekap()">
+                <option value="">Semua Cabang</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Bulan</label>
+              <input type="month" id="filter-bulan-rekap" onchange="loadRekap()">
+            </div>
+            <button class="btn btn-blue btn-sm" onclick="loadRekap()">📊 Tampilkan</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:14px">📅 Rekap Harian</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Tanggal</th><th>Cabang</th><th>Hadir</th><th>Izin</th><th>Sakit</th><th>Total Masuk</th></tr></thead>
+              <tbody id="table-rekap"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== KARYAWAN ======== -->
+      <div class="page" id="page-karyawan">
+        <div class="grid-2">
+          <!-- FORM TAMBAH -->
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px">➕ Tambah Karyawan</div>
+            <div class="form-group">
+              <label>Cabang</label>
+              <select id="kar-cabang">
+                <option value="">-- Pilih Cabang --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>ID Karyawan</label>
+              <input type="text" id="kar-id" placeholder="Contoh: EMP001" style="text-transform:uppercase">
+            </div>
+            <div class="form-group">
+              <label>Nama Lengkap</label>
+              <input type="text" id="kar-nama" placeholder="Nama lengkap...">
+            </div>
+            <div class="form-group">
+              <label>Jabatan</label>
+              <input type="text" id="kar-jabatan" placeholder="Staff, Manager, dll">
+            </div>
+            <button class="btn btn-green btn-full" onclick="tambahKaryawan()">➕ Tambah Karyawan</button>
+          </div>
+
+          <!-- LIST KARYAWAN -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">👥 Daftar Karyawan</div>
+              <select id="filter-cabang-kar" onchange="loadKaryawanList()" style="width:auto;font-size:12px;padding:6px 10px">
+                <option value="">Semua Cabang</option>
+              </select>
+            </div>
+            <div id="list-karyawan">
+              <div class="loading"><div class="spinner"></div> Memuat...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== CABANG ======== -->
+      <div class="page" id="page-cabang">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px">➕ Tambah Cabang</div>
+            <div class="form-group">
+              <label>Nama Cabang</label>
+              <input type="text" id="cab-nama" placeholder="Contoh: Jakarta Pusat">
+            </div>
+            <div class="form-group">
+              <label>Kota / Wilayah</label>
+              <input type="text" id="cab-kota" placeholder="Contoh: DKI Jakarta">
+            </div>
+            <div class="form-group">
+              <label>Alamat</label>
+              <input type="text" id="cab-alamat" placeholder="Alamat lengkap...">
+            </div>
+            <button class="btn btn-blue btn-full" onclick="tambahCabang()">➕ Tambah Cabang</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px">🏢 Daftar Cabang</div>
+            <div id="list-cabang">
+              <div class="loading"><div class="spinner"></div> Memuat...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== EXPORT ======== -->
+      <div class="page" id="page-export">
+        <div class="card" style="max-width:500px">
+          <div class="card-title" style="margin-bottom:20px">📤 Export Data CSV</div>
+          <div class="form-group">
+            <label>Cabang</label>
+            <select id="exp-cabang">
+              <option value="">Semua Cabang</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Dari Tanggal</label>
+            <input type="date" id="exp-dari">
+          </div>
+          <div class="form-group">
+            <label>Sampai Tanggal</label>
+            <input type="date" id="exp-sampai">
+          </div>
+          <button class="btn btn-green btn-full" onclick="exportCSV()" style="margin-bottom:10px">📥 Download CSV</button>
+          <button class="btn btn-blue btn-full" onclick="exportCSVKaryawan()">👥 Export Data Karyawan</button>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /screen-app -->
+
+<script>
+// ============================================================
+// AUTH
+// ============================================================
+const HRD_PASS = 'hrd2024'; // Ganti password di sini
+
+function hrdLogin() {
+  const pass = document.getElementById('hrd-password').value;
+  if (pass === HRD_PASS) {
+    document.getElementById('screen-login').style.display = 'none';
+    document.getElementById('screen-app').style.display = 'block';
+    initApp();
+  } else {
+    showToast('Password salah!', 'error');
+  }
+}
+
+function hrdLogout() {
+  document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('screen-app').style.display = 'none';
+}
+
+// ============================================================
+// FIREBASE
+// ============================================================
+function waitFB() {
+  return new Promise(r => { if (window._fbReady) return r(); document.addEventListener('firebase-ready', r, {once:true}); });
+}
+
+async function fbGetAll(col) {
+  await waitFB();
+  const snap = await window._getDocs(window._collection(window._db, col));
+  return snap.docs.map(d => ({id: d.id, ...d.data()}));
+}
+
+async function fbQuery(col, ...conds) {
+  await waitFB();
+  const q = window._query(window._collection(window._db, col), ...conds);
+  const snap = await window._getDocs(q);
+  return snap.docs.map(d => ({id: d.id, ...d.data()}));
+}
+
+async function fbAdd(col, data) {
+  return window._addDoc(window._collection(window._db, col), data);
+}
+
+async function fbSet(col, id, data) {
+  return window._setDoc(window._doc(window._db, col, id), data);
+}
+
+async function fbDel(col, id) {
+  return window._deleteDoc(window._doc(window._db, col, id));
+}
+
+// ============================================================
+// PAGES
+// ============================================================
+const pageMeta = {
+  dashboard: ['Dashboard', 'Ringkasan semua cabang'],
+  absensi: ['Data Absensi', 'Lihat & filter data absensi'],
+  rekap: ['Rekap Harian', 'Rekap kehadiran per hari'],
+  karyawan: ['Manajemen Karyawan', 'Tambah & kelola karyawan per cabang'],
+  cabang: ['Manajemen Cabang', 'Tambah & kelola cabang'],
+  export: ['Export Data', 'Download data ke CSV'],
+};
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  document.getElementById('topbar-title').textContent = pageMeta[name][0];
+  document.getElementById('topbar-sub').textContent = pageMeta[name][1];
+
+  const loaders = {
+    dashboard: loadDashboard,
+    absensi: loadAbsensiData,
+    rekap: loadRekap,
+    karyawan: () => { loadKaryawanList(); },
+    cabang: loadCabangList,
+  };
+  if (loaders[name]) loaders[name]();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function initApp() {
+  await waitFB();
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('filter-tgl-absensi').value = today;
+  const ym = today.slice(0, 7);
+  document.getElementById('filter-bulan-rekap').value = ym;
+
+  const exp = document.getElementById('exp-dari');
+  const exp2 = document.getElementById('exp-sampai');
+  exp.value = today.slice(0,8) + '01';
+  exp2.value = today;
+
+  await refreshCabangDropdowns();
+  loadDashboard();
+}
+
+async function refreshCabangDropdowns() {
+  const list = await fbGetAll('cabang');
+  const ids = ['filter-cabang-absensi','filter-cabang-rekap','filter-cabang-kar','kar-cabang','exp-cabang'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    const first = el.options[0].outerHTML;
+    el.innerHTML = first;
+    list.forEach(c => { el.innerHTML += `<option value="${c.id}">${c.nama}</option>`; });
+  });
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function loadDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const all = await fbGetAll('absensi');
+  const cabangList = await fbGetAll('cabang');
+
+  document.getElementById('d-total').textContent = all.length;
+  const todayRec = all.filter(a => a.tanggal === today);
+  document.getElementById('d-hadir').textContent = todayRec.filter(a => a.status === 'Masuk' && a.keterangan === 'Hadir').length;
+  document.getElementById('d-izin').textContent = todayRec.filter(a => a.keterangan === 'Izin' || a.keterangan === 'Sakit').length;
+  document.getElementById('d-cabang').textContent = cabangList.length;
+
+  // Per cabang hari ini
+  const cabangMap = {};
+  cabangList.forEach(c => { cabangMap[c.id] = { nama: c.nama, hadir: 0, izin: 0 }; });
+  todayRec.forEach(a => {
+    if (!cabangMap[a.cabangId]) cabangMap[a.cabangId] = { nama: a.cabangNama || a.cabangId, hadir: 0, izin: 0 };
+    if (a.status === 'Masuk') {
+      if (a.keterangan === 'Hadir') cabangMap[a.cabangId].hadir++;
+      else cabangMap[a.cabangId].izin++;
+    }
+  });
+
+  const tbody = document.getElementById('dash-cabang-table');
+  const entries = Object.values(cabangMap);
+  tbody.innerHTML = entries.length ? entries.map(c => `
+    <tr>
+      <td><strong>${c.nama}</strong></td>
+      <td style="color:var(--green);font-weight:700">${c.hadir}</td>
+      <td style="color:var(--purple);font-weight:700">${c.izin}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-weight:600">${c.hadir + c.izin}</td>
+    </tr>`).join('') : '<tr><td colspan="4"><div class="empty"><p>Belum ada data hari ini</p></div></td></tr>';
+
+  // Recent
+  const recent = [...all].sort((a,b) => b.timestamp - a.timestamp).slice(0, 8);
+  document.getElementById('dash-recent-table').innerHTML = recent.length ? recent.map(a => `
+    <tr>
+      <td><img class="thumb" src="${a.foto}" onclick="openFoto('${a.foto}')"></td>
+      <td><strong>${a.nama}</strong><br><span style="font-size:10px;color:var(--muted)">${a.karyawanId}</span></td>
+      <td style="font-size:12px">${a.cabangNama || '-'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--blue)">${a.waktu}</td>
+      <td><span class="badge ${a.status === 'Masuk' ? 'badge-masuk' : 'badge-pulang'}">${a.status}</span></td>
+    </tr>`).join('') : '<tr><td colspan="5"><div class="empty"><p>Belum ada data</p></div></td></tr>';
+}
+
+// ============================================================
+// ABSENSI
+// ============================================================
+let allAbsensi = [];
+
+async function loadAbsensiData() {
+  document.getElementById('table-absensi').innerHTML = '<tr><td colspan="9"><div class="loading"><div class="spinner"></div> Memuat...</div></td></tr>';
+  allAbsensi = await fbGetAll('absensi');
+  allAbsensi.sort((a,b) => b.timestamp - a.timestamp);
+  renderAbsensi();
+}
+
+function renderAbsensi() {
+  const cabang = document.getElementById('filter-cabang-absensi').value;
+  const tgl = document.getElementById('filter-tgl-absensi').value;
+  const status = document.getElementById('filter-status-absensi').value;
+  const search = document.getElementById('filter-search-absensi').value.toLowerCase();
+
+  let data = allAbsensi.filter(a =>
+    (!cabang || a.cabangId === cabang) &&
+    (!tgl || a.tanggal === tgl) &&
+    (!status || a.status === status) &&
+    (!search || a.nama?.toLowerCase().includes(search) || a.karyawanId?.toLowerCase().includes(search))
+  );
+
+  const tbody = document.getElementById('table-absensi');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="icon">📭</div><p>Tidak ada data</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(a => `
+    <tr>
+      <td><img class="thumb" src="${a.foto}" onclick="openFoto('${a.foto}')"></td>
+      <td><strong>${a.nama}</strong></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${a.karyawanId}</td>
+      <td><span class="badge badge-hadir" style="font-size:10px">${a.cabangNama || '-'}</span></td>
+      <td style="font-size:12px">${formatTgl(a.tanggal)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);font-size:12px">${a.waktu}</td>
+      <td><span class="badge ${a.status === 'Masuk' ? 'badge-masuk' : 'badge-pulang'}">${a.status}</span></td>
+      <td style="font-size:12px">${a.keterangan}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="hapusAbsensi('${a.id}')" style="color:var(--red);border-color:var(--red)">🗑️</button></td>
+    </tr>`).join('');
+}
+
+async function hapusAbsensi(id) {
+  if (!confirm('Hapus data absensi ini?')) return;
+  await fbDel('absensi', id);
+  showToast('Data dihapus', 'success');
+  loadAbsensiData();
+}
+
+// ============================================================
+// REKAP
+// ============================================================
+async function loadRekap() {
+  const cabang = document.getElementById('filter-cabang-rekap').value;
+  const bulan = document.getElementById('filter-bulan-rekap').value;
+  if (!bulan) return;
+
+  document.getElementById('table-rekap').innerHTML = '<tr><td colspan="6"><div class="loading"><div class="spinner"></div> Memuat...</div></td></tr>';
+  const all = await fbGetAll('absensi');
+
+  const filtered = all.filter(a =>
+    a.tanggal?.startsWith(bulan) &&
+    (!cabang || a.cabangId === cabang) &&
+    a.status === 'Masuk'
+  );
+
+  const rekap = {};
+  filtered.forEach(a => {
+    const key = `${a.tanggal}__${a.cabangId}`;
+    if (!rekap[key]) rekap[key] = { tanggal: a.tanggal, cabang: a.cabangNama || a.cabangId, hadir: 0, izin: 0, sakit: 0 };
+    if (a.keterangan === 'Hadir') rekap[key].hadir++;
+    else if (a.keterangan === 'Izin') rekap[key].izin++;
+    else if (a.keterangan === 'Sakit') rekap[key].sakit++;
+  });
+
+  const sorted = Object.values(rekap).sort((a,b) => b.tanggal.localeCompare(a.tanggal));
+  const tbody = document.getElementById('table-rekap');
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><p>Tidak ada data untuk periode ini</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(r => `
+    <tr>
+      <td>${formatTgl(r.tanggal)}</td>
+      <td><span class="badge badge-hadir">${r.cabang}</span></td>
+      <td style="color:var(--green);font-weight:700">${r.hadir}</td>
+      <td style="color:var(--purple);font-weight:700">${r.izin}</td>
+      <td style="color:var(--red);font-weight:700">${r.sakit}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-weight:600">${r.hadir + r.izin + r.sakit}</td>
+    </tr>`).join('');
+}
+
+// ============================================================
+// KARYAWAN
+// ============================================================
+async function tambahKaryawan() {
+  const cabangId = document.getElementById('kar-cabang').value;
+  const karyawanId = document.getElementById('kar-id').value.trim().toUpperCase();
+  const nama = document.getElementById('kar-nama').value.trim();
+  const jabatan = document.getElementById('kar-jabatan').value.trim();
+
+  if (!cabangId || !karyawanId || !nama) { showToast('Lengkapi semua field!', 'error'); return; }
+
+  await fbAdd('karyawan', { cabangId, karyawanId, nama, jabatan, createdAt: Date.now() });
+  showToast(`✅ ${nama} (${karyawanId}) berhasil ditambahkan`, 'success');
+  document.getElementById('kar-id').value = '';
+  document.getElementById('kar-nama').value = '';
+  document.getElementById('kar-jabatan').value = '';
+  loadKaryawanList();
+}
+
+async function loadKaryawanList() {
+  const cabang = document.getElementById('filter-cabang-kar').value;
+  const container = document.getElementById('list-karyawan');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Memuat...</div>';
+
+  let list = await fbGetAll('karyawan');
+  const cabangList = await fbGetAll('cabang');
+  const cabangMap = {};
+  cabangList.forEach(c => cabangMap[c.id] = c.nama);
+
+  if (cabang) list = list.filter(k => k.cabangId === cabang);
+  list.sort((a,b) => a.nama?.localeCompare(b.nama));
+
+  if (!list.length) {
+    container.innerHTML = '<div class="empty"><div class="icon">👤</div><p>Belum ada karyawan</p></div>';
+    return;
+  }
+
+  container.innerHTML = list.map(k => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:700;font-size:13px">${k.nama}</div>
+        <div style="font-size:11px;color:var(--muted)">
+          <span style="font-family:'JetBrains Mono',monospace;color:var(--blue)">${k.karyawanId}</span>
+          · ${k.jabatan || '-'}
+          · <span style="color:var(--purple)">${cabangMap[k.cabangId] || k.cabangId}</span>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="hapusKaryawan('${k.id}')" style="color:var(--red);border-color:var(--red)">🗑️</button>
+    </div>`).join('');
+}
+
+async function hapusKaryawan(id) {
+  if (!confirm('Hapus karyawan ini?')) return;
+  await fbDel('karyawan', id);
+  showToast('Karyawan dihapus', 'success');
+  loadKaryawanList();
+}
+
+// ============================================================
+// CABANG
+// ============================================================
+async function tambahCabang() {
+  const nama = document.getElementById('cab-nama').value.trim();
+  const kota = document.getElementById('cab-kota').value.trim();
+  const alamat = document.getElementById('cab-alamat').value.trim();
+  if (!nama) { showToast('Nama cabang wajib diisi!', 'error'); return; }
+
+  await fbAdd('cabang', { nama, kota, alamat, createdAt: Date.now() });
+  showToast(`✅ Cabang ${nama} ditambahkan!`, 'success');
+  document.getElementById('cab-nama').value = '';
+  document.getElementById('cab-kota').value = '';
+  document.getElementById('cab-alamat').value = '';
+  loadCabangList();
+  refreshCabangDropdowns();
+}
+
+async function loadCabangList() {
+  const list = await fbGetAll('cabang');
+  const container = document.getElementById('list-cabang');
+  if (!list.length) {
+    container.innerHTML = '<div class="empty"><div class="icon">🏢</div><p>Belum ada cabang</p></div>';
+    return;
+  }
+  container.innerHTML = list.map(c => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:700;font-size:13px">🏢 ${c.nama}</div>
+        <div style="font-size:11px;color:var(--muted)">${c.kota || ''} ${c.alamat ? '· ' + c.alamat : ''}</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="hapusCabang('${c.id}')" style="color:var(--red);border-color:var(--red)">🗑️</button>
+    </div>`).join('');
+}
+
+async function hapusCabang(id) {
+  if (!confirm('Hapus cabang ini? Data karyawan di cabang ini tidak ikut terhapus.')) return;
+  await fbDel('cabang', id);
+  showToast('Cabang dihapus', 'success');
+  loadCabangList();
+  refreshCabangDropdowns();
+}
+
+// ============================================================
+// EXPORT CSV
+// ============================================================
+async function exportCSV() {
+  const cabang = document.getElementById('exp-cabang').value;
+  const dari = document.getElementById('exp-dari').value;
+  const sampai = document.getElementById('exp-sampai').value;
+
+  let data = await fbGetAll('absensi');
+  if (cabang) data = data.filter(a => a.cabangId === cabang);
+  if (dari) data = data.filter(a => a.tanggal >= dari);
+  if (sampai) data = data.filter(a => a.tanggal <= sampai);
+  data.sort((a,b) => a.tanggal?.localeCompare(b.tanggal));
+
+  if (!data.length) { showToast('Tidak ada data untuk diexport', 'error'); return; }
+
+  const header = ['Nama', 'ID Karyawan', 'Jabatan', 'Cabang', 'Tanggal', 'Waktu', 'Status', 'Keterangan'];
+  const rows = data.map(a => [a.nama, a.karyawanId, a.jabatan||'', a.cabangNama||'', a.tanggal, a.waktu, a.status, a.keterangan]);
+  downloadCSV([header, ...rows], `absensi_${dari}_${sampai}.csv`);
+  showToast('CSV berhasil didownload!', 'success');
+}
+
+async function exportCSVKaryawan() {
+  const list = await fbGetAll('karyawan');
+  const cabangList = await fbGetAll('cabang');
+  const cabangMap = {};
+  cabangList.forEach(c => cabangMap[c.id] = c.nama);
+
+  const header = ['ID Karyawan', 'Nama', 'Jabatan', 'Cabang'];
+  const rows = list.map(k => [k.karyawanId, k.nama, k.jabatan||'', cabangMap[k.cabangId]||k.cabangId]);
+  downloadCSV([header, ...rows], 'daftar_karyawan.csv');
+  showToast('Export karyawan berhasil!', 'success');
+}
+
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function formatTgl(tgl) {
+  if (!tgl) return '-';
+  return new Date(tgl).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function openFoto(src) {
+  document.getElementById('modal-img-src').src = src;
+  document.getElementById('modal-foto').classList.add('show');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function showToast(msg, type = 'info') {
+  const wrap = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>

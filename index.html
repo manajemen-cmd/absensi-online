@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absensi Online</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- ✅ FIREBASE SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, doc, getDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ============================================================
+  // 🔧 GANTI DENGAN KONFIGURASI FIREBASE KAMU
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyAF22vg9Nu4OpVgk_9DcJpKsR0thlK75vQ",
+    authDomain: "absensi-perusahaan-9a406.firebaseapp.com",
+    projectId: "absensi-perusahaan-9a406",
+    storageBucket: "absensi-perusahaan-9a406.firebasestorage.app",
+    messagingSenderId: "864080096300",
+    appId: "1:864080096300:web:8ceba34272492c8c91f589",
+    measurementId: "G-X0Z4GX0YN8"
+  };
+  // ============================================================
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window._db = db;
+  window._fbReady = true;
+  window._collection = collection;
+  window._addDoc = addDoc;
+  window._getDocs = getDocs;
+  window._query = query;
+  window._where = where;
+  window._orderBy = orderBy;
+  window._doc = doc;
+  window._getDoc = getDoc;
+
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<style>
+:root {
+  --bg: #f0f4ff;
+  --white: #ffffff;
+  --surface: #f8faff;
+  --border: #dde5f5;
+  --accent: #2563eb;
+  --accent-light: #eff4ff;
+  --accent2: #7c3aed;
+  --green: #059669;
+  --green-light: #ecfdf5;
+  --red: #dc2626;
+  --yellow: #d97706;
+  --text: #0f172a;
+  --muted: #64748b;
+  --shadow: 0 4px 24px rgba(37,99,235,0.08);
+  --shadow-lg: 0 8px 40px rgba(37,99,235,0.13);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* HEADER */
+.header {
+  background: var(--accent);
+  color: white;
+  padding: 0 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 16px rgba(37,99,235,0.3);
+}
+
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-logo { font-size: 22px; }
+.header-title { font-size: 16px; font-weight: 700; }
+.header-subtitle { font-size: 11px; opacity: 0.75; }
+
+.cabang-badge {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+
+.clock-display {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  background: rgba(0,0,0,0.2);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+/* MAIN */
+.main { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+
+/* CARD */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+.card-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* SETUP CABANG SCREEN */
+#screen-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.setup-card {
+  background: white;
+  border-radius: 20px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.setup-icon { font-size: 48px; margin-bottom: 12px; }
+.setup-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; color: var(--text); }
+.setup-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+/* FORM */
+.form-group { margin-bottom: 14px; text-align: left; }
+label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+input, select {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  background: var(--surface);
+  outline: none;
+  transition: all 0.2s;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+select option { background: white; }
+
+/* BUTTONS */
+.btn {
+  padding: 13px 20px;
+  border-radius: 12px;
+  border: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+}
+.btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+
+.btn-success {
+  background: var(--green);
+  color: white;
+  box-shadow: 0 4px 14px rgba(5,150,105,0.3);
+}
+.btn-success:hover { background: #047857; transform: translateY(-1px); }
+
+.btn-outline {
+  background: white;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 12px;
+  width: auto;
+  border-radius: 8px;
+}
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+
+/* KAMERA */
+.camera-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  background: #000;
+  aspect-ratio: 4/3;
+  position: relative;
+}
+
+#video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+
+.cam-corners span {
+  position: absolute;
+  width: 18px; height: 18px;
+  border-color: #00d4ff; border-style: solid; opacity: 0.8;
+}
+.cam-corners span:nth-child(1) { top:10px; left:10px; border-width:2px 0 0 2px; border-radius:3px 0 0 0; }
+.cam-corners span:nth-child(2) { top:10px; right:10px; border-width:2px 2px 0 0; border-radius:0 3px 0 0; }
+.cam-corners span:nth-child(3) { bottom:10px; left:10px; border-width:0 0 2px 2px; border-radius:0 0 0 3px; }
+.cam-corners span:nth-child(4) { bottom:10px; right:10px; border-width:0 2px 2px 0; border-radius:0 0 3px 0; }
+
+.cam-placeholder {
+  aspect-ratio: 4/3;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s;
+  background: var(--surface);
+}
+.cam-placeholder:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.cam-placeholder .icon { font-size: 36px; }
+
+#photo-result { width: 100%; border-radius: 12px; border: 2px solid var(--green); display: none; }
+
+.btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.btn-row .btn { flex: 1; }
+
+/* SUDAH ABSEN ALERT */
+.alert {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.alert-success { background: var(--green-light); color: var(--green); border: 1px solid #a7f3d0; }
+.alert-info { background: var(--accent-light); color: var(--accent); border: 1px solid #bfdbfe; }
+.alert-warning { background: #fffbeb; color: var(--yellow); border: 1px solid #fde68a; }
+
+/* STATUS BADGE */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+}
+.badge-masuk { background: #d1fae5; color: var(--green); }
+.badge-pulang { background: #fef3c7; color: var(--yellow); }
+
+/* INFO ROW */
+.info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--muted); font-weight: 500; }
+.info-val { font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+/* TOAST */
+.toast-wrap {
+  position: fixed; top: 70px; right: 16px; z-index: 999;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  background: white; border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: var(--shadow-lg); max-width: 300px;
+  animation: toastIn 0.3s ease;
+  border-left: 3px solid var(--accent);
+}
+.toast.success { border-left-color: var(--green); }
+.toast.error { border-left-color: var(--red); }
+
+@keyframes toastIn {
+  from { transform: translateX(80px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* LOADING */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 20px; color: var(--muted); font-size: 14px;
+}
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+#screen-main { display: none; }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- ======================== SETUP SCREEN ======================== -->
+<div id="screen-setup">
+  <div class="setup-card">
+    <div class="setup-icon">🏢</div>
+    <div class="setup-title">Absensi Online</div>
+    <div class="setup-sub">Pilih cabang dan masukkan ID karyawan Anda</div>
+
+    <div class="form-group">
+      <label>Pilih Cabang</label>
+      <select id="cabang-select">
+        <option value="">-- Memuat cabang... --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>ID Karyawan</label>
+      <input type="text" id="id-karyawan" placeholder="Contoh: EMP001" style="text-transform:uppercase">
+    </div>
+
+    <button class="btn btn-primary" onclick="loadKaryawan()" id="btn-login">
+      🔍 Cari Data Karyawan
+    </button>
+
+    <div id="login-result" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- ======================== MAIN SCREEN ======================== -->
+<div id="screen-main">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">📋</div>
+      <div>
+        <div class="header-title">Absensi Online</div>
+        <div class="header-subtitle" id="header-cabang">Cabang -</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="clock-display" id="clock">00:00</div>
+      <button onclick="logout()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:5px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600">Ganti</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- INFO KARYAWAN -->
+    <div class="card">
+      <div class="card-label">👤 Karyawan</div>
+      <div class="info-row">
+        <span class="info-label">Nama</span>
+        <span class="info-val" id="info-nama">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">ID</span>
+        <span class="info-val" id="info-id">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Jabatan</span>
+        <span class="info-val" id="info-jabatan">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Cabang</span>
+        <span class="info-val" id="info-cabang">-</span>
+      </div>
+    </div>
+
+    <!-- STATUS HARI INI -->
+    <div id="status-card" class="card">
+      <div class="card-label">📅 Status Hari Ini</div>
+      <div id="status-content">
+        <div class="loading"><div class="spinner"></div> Mengecek...</div>
+      </div>
+    </div>
+
+    <!-- KAMERA -->
+    <div class="card">
+      <div class="card-label">📷 Foto Selfie</div>
+      <div id="cam-area">
+        <div class="cam-placeholder" onclick="startCam()">
+          <div class="icon">📷</div>
+          <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
+        </div>
+      </div>
+      <img id="photo-result" src="" alt="">
+      <div class="btn-row" id="cam-btns" style="display:none">
+        <button class="btn btn-primary" onclick="capturePhoto()" id="btn-capture">📸 Ambil Foto</button>
+        <button class="btn btn-outline" onclick="retake()" id="btn-retake" style="display:none">🔄 Ulang</button>
+      </div>
+    </div>
+
+    <!-- FORM ABSEN -->
+    <div class="card">
+      <div class="card-label">✍️ Absensi</div>
+      
+      <div class="form-group">
+        <label>Keterangan</label>
+        <select id="ket-select">
+          <option value="Hadir">✅ Hadir</option>
+          <option value="Izin">📋 Izin</option>
+          <option value="Sakit">🤒 Sakit</option>
+        </select>
+      </div>
+
+      <div id="action-buttons">
+        <button class="btn btn-primary" onclick="submitAbsen('Masuk')" id="btn-masuk">✅ Absen Masuk</button>
+        <div style="margin-top:8px">
+          <button class="btn btn-success" onclick="submitAbsen('Pulang')" id="btn-pulang" style="display:none">🏠 Absen Pulang</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let currentUser = null;
+let photoData = null;
+let stream = null;
+let todayStatus = { masuk: null, pulang: null };
+
+// ============================================================
+// CLOCK
+// ============================================================
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============================================================
+// FIREBASE HELPERS
+// ============================================================
+function waitFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    document.addEventListener('firebase-ready', resolve, { once: true });
+  });
+}
+
+async function fbAdd(col, data) {
+  return window._addDoc(window._collection(window._db, col), data);
+}
+
+async function fbQuery(col, ...conditions) {
+  const q = window._query(window._collection(window._db, col), ...conditions);
+  const snap = await window._getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// ============================================================
+// LOAD CABANG
+// ============================================================
+async function loadCabangList() {
+  await waitFirebase();
+  const list = await fbQuery('cabang');
+  const sel = document.getElementById('cabang-select');
+  if (!list.length) {
+    sel.innerHTML = '<option value="">Belum ada cabang — hubungi HRD</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">-- Pilih Cabang --</option>';
+  list.forEach(c => {
+    sel.innerHTML += `<option value="${c.id}">${c.nama}</option>`;
+  });
+}
+
+// ============================================================
+// LOGIN / CARI KARYAWAN
+// ============================================================
+async function loadKaryawan() {
+  const cabangId = document.getElementById('cabang-select').value;
+  const idInput = document.getElementById('id-karyawan').value.trim().toUpperCase();
+  const result = document.getElementById('login-result');
+
+  if (!cabangId) { showToast('Pilih cabang dulu!', 'error'); return; }
+  if (!idInput) { showToast('Masukkan ID karyawan!', 'error'); return; }
+
+  result.innerHTML = '<div class="loading"><div class="spinner"></div> Mencari...</div>';
+
+  await waitFirebase();
+  const list = await fbQuery('karyawan',
+    window._where('cabangId', '==', cabangId),
+    window._where('karyawanId', '==', idInput)
+  );
+
+  if (!list.length) {
+    result.innerHTML = '<div class="alert alert-warning">⚠️ ID tidak ditemukan di cabang ini</div>';
+    return;
+  }
+
+  const karyawan = list[0];
+  const cabangList = await fbQuery('cabang');
+  const cabang = cabangList.find(c => c.id === cabangId);
+
+  currentUser = { ...karyawan, cabangNama: cabang?.nama || cabangId };
+  result.innerHTML = '';
+
+  document.getElementById('info-nama').textContent = karyawan.nama;
+  document.getElementById('info-id').textContent = karyawan.karyawanId;
+  document.getElementById('info-jabatan').textContent = karyawan.jabatan || '-';
+  document.getElementById('info-cabang').textContent = currentUser.cabangNama;
+  document.getElementById('header-cabang').textContent = 'Cabang ' + currentUser.cabangNama;
+
+  document.getElementById('screen-setup').style.display = 'none';
+  document.getElementById('screen-main').style.display = 'block';
+
+  checkStatusHariIni();
+}
+
+function logout() {
+  currentUser = null; photoData = null;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  document.getElementById('screen-setup').style.display = 'flex';
+  document.getElementById('screen-main').style.display = 'none';
+  document.getElementById('cam-area').innerHTML = `
+    <div class="cam-placeholder" onclick="startCam()">
+      <div class="icon">📷</div>
+      <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
+    </div>`;
+  document.getElementById('photo-result').style.display = 'none';
+  document.getElementById('cam-btns').style.display = 'none';
+}
+
+// ============================================================
+// CEK STATUS HARI INI
+// ============================================================
+async function checkStatusHariIni() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('status-content').innerHTML =
+    '<div class="loading"><div class="spinner"></div> Mengecek...</div>';
+
+  const records = await fbQuery('absensi',
+    window._where('karyawanId', '==', currentUser.karyawanId),
+    window._where('cabangId', '==', currentUser.cabangId),
+    window._where('tanggal', '==', today)
+  );
+
+  const masuk = records.find(r => r.status === 'Masuk');
+  const pulang = records.find(r => r.status === 'Pulang');
+  todayStatus = { masuk, pulang };
+
+  let html = '';
+  if (!masuk && !pulang) {
+    html = '<div class="alert alert-info">📌 Belum absen hari ini</div>';
+    document.getElementById('btn-masuk').style.display = 'flex';
+    document.getElementById('btn-pulang').style.display = 'none';
+  } else if (masuk && !pulang) {
+    html = `<div class="alert alert-success">✅ Masuk: <strong>${masuk.waktu}</strong></div>
+            <div class="alert alert-info" style="margin-top:6px">⏳ Belum absen pulang</div>`;
+    document.getElementById('btn-masuk').style.display = 'none';
+    document.getElementById('btn-pulang').style.display = 'flex';
+  } else if (masuk && pulang) {
+    html = `<div class="alert alert-success">✅ Masuk: <strong>${masuk.waktu}</strong></div>
+            <div class="alert alert-success" style="margin-top:6px">🏠 Pulang: <strong>${pulang.waktu}</strong></div>`;
+    document.getElementById('btn-masuk').style.display = 'none';
+    document.getElementById('btn-pulang').style.display = 'none';
+    document.getElementById('action-buttons').innerHTML =
+      '<div class="alert alert-success">🎉 Absensi hari ini sudah lengkap!</div>';
+  }
+
+  document.getElementById('status-content').innerHTML = html;
+}
+
+// ============================================================
+// KAMERA
+// ============================================================
+async function startCam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    document.getElementById('cam-area').innerHTML = `
+      <div class="camera-wrap">
+        <video id="video" autoplay playsinline></video>
+        <div class="cam-corners">
+          <span></span><span></span><span></span><span></span>
+        </div>
+      </div>`;
+    document.getElementById('video').srcObject = stream;
+    document.getElementById('cam-btns').style.display = 'flex';
+    document.getElementById('btn-capture').style.display = 'flex';
+    document.getElementById('btn-retake').style.display = 'none';
+  } catch(e) {
+    showToast('Tidak bisa akses kamera', 'error');
+  }
+}
+
+function capturePhoto() {
+  const video = document.getElementById('video');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+  photoData = canvas.toDataURL('image/jpeg', 0.6);
+
+  document.getElementById('cam-area').innerHTML = '';
+  const img = document.getElementById('photo-result');
+  img.src = photoData; img.style.display = 'block';
+
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  document.getElementById('btn-capture').style.display = 'none';
+  document.getElementById('btn-retake').style.display = 'flex';
+  showToast('Foto berhasil diambil!', 'success');
+}
+
+function retake() {
+  photoData = null;
+  document.getElementById('photo-result').style.display = 'none';
+  document.getElementById('cam-area').innerHTML = `
+    <div class="cam-placeholder" onclick="startCam()">
+      <div class="icon">📷</div>
+      <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
+    </div>`;
+  document.getElementById('cam-btns').style.display = 'none';
+  startCam();
+}
+
+// ============================================================
+// SUBMIT ABSEN
+// ============================================================
+async function submitAbsen(status) {
+  if (!photoData) { showToast('Ambil foto selfie dulu!', 'error'); return; }
+
+  const now = new Date();
+  const waktu = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const tanggal = now.toISOString().split('T')[0];
+  const ket = document.getElementById('ket-select').value;
+
+  const btnId = status === 'Masuk' ? 'btn-masuk' : 'btn-pulang';
+  document.getElementById(btnId).disabled = true;
+  document.getElementById(btnId).textContent = '⏳ Menyimpan...';
+
+  try {
+    await fbAdd('absensi', {
+      karyawanId: currentUser.karyawanId,
+      nama: currentUser.nama,
+      jabatan: currentUser.jabatan || '',
+      cabangId: currentUser.cabangId,
+      cabangNama: currentUser.cabangNama,
+      tanggal, waktu, status,
+      keterangan: ket,
+      foto: photoData,
+      timestamp: now.getTime()
+    });
+
+    showToast(`${status === 'Masuk' ? '✅ Absen masuk' : '🏠 Absen pulang'} berhasil! (${waktu})`, 'success');
+    photoData = null;
+    document.getElementById('photo-result').style.display = 'none';
+    document.getElementById('cam-area').innerHTML = `
+      <div class="cam-placeholder" onclick="startCam()">
+        <div class="icon">📷</div>
+        <div style="font-size:13px;font-weight:600">Tap untuk aktifkan kamera</div>
+      </div>`;
+    document.getElementById('cam-btns').style.display = 'none';
+    checkStatusHariIni();
+  } catch(e) {
+    showToast('Gagal menyimpan: ' + e.message, 'error');
+    document.getElementById(btnId).disabled = false;
+    document.getElementById(btnId).textContent = status === 'Masuk' ? '✅ Absen Masuk' : '🏠 Absen Pulang';
+  }
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type = 'info') {
+  const wrap = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  waitFirebase().then(() => loadCabangList());
+});
+</script>
+</body>
+</html>

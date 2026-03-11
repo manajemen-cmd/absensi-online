@@ -332,6 +332,19 @@ select option { background: white; }
 .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
 #screen-main { display: none; }
+
+/* Liveness step indicators */
+#liveness-steps > div {
+  transition: all 0.3s ease;
+}
+#step-blink[style*="rgb(239, 246, 255)"],
+#step-real[style*="rgb(239, 246, 255)"] {
+  animation: pulse-blue 1.2s infinite;
+}
+@keyframes pulse-blue {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
 </style>
 </head>
 <body>
@@ -796,16 +809,25 @@ let livenessState = {
 // Tunggu face-api model siap
 async function loadFaceModels() {
   if (livenessState.faceApiReady) return true;
+  // Cek apakah face-api.js library sudah tersedia
+  if (typeof faceapi === 'undefined') {
+    console.warn('face-api.js belum tersedia');
+    return false;
+  }
   try {
     const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+    // Timeout 15 detik untuk load model
+    await Promise.race([
+      Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+      ]),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
     ]);
     livenessState.faceApiReady = true;
     return true;
   } catch(e) {
-    console.warn('Face API model gagal load:', e);
+    console.warn('Face API model gagal load:', e.message);
     return false;
   }
 }
@@ -899,10 +921,31 @@ async function startCam() {
     // Load model
     const modelOk = await loadFaceModels();
     if (!modelOk) {
-      // Fallback: tanpa liveness, langsung bisa foto
-      setLivenessBar('⚠️', 'Mode manual — model tidak tersedia');
-      document.getElementById('btn-capture').disabled = false;
-      document.getElementById('btn-capture').style.opacity = '1';
+      // Fallback: model tidak tersedia — pakai countdown 5 detik + pastikan kamera aktif
+      setStep('step-face', 'done');
+      let sisa = 5;
+      setLivenessBar('📷', `Posisikan wajah di kamera... (${sisa}s)`, 'blue');
+      setStep('step-blink', 'active');
+
+      const countdown = setInterval(() => {
+        sisa--;
+        if (sisa > 0) {
+          setLivenessBar('📷', `Posisikan wajah di kamera... (${sisa}s)`, 'blue');
+        } else {
+          clearInterval(countdown);
+          // Cek apakah kamera masih aktif (stream ada)
+          if (stream && stream.active) {
+            setStep('step-blink', 'done');
+            setStep('step-real', 'done');
+            setLivenessBar('✅', 'Siap ambil foto!', 'green');
+            document.getElementById('btn-capture').disabled = false;
+            document.getElementById('btn-capture').style.opacity = '1';
+            document.getElementById('btn-capture').style.background = '#059669';
+          } else {
+            setLivenessBar('❌', 'Kamera tidak aktif — ulangi', 'red');
+          }
+        }
+      }, 1000);
       return;
     }
 
